@@ -1,0 +1,245 @@
+{
+  "schema_version": "1.0",
+  "description": "Global constraints applicable to all five zero-day IDS scenarios",
+  "last_updated": "2026-04-17",
+  
+  "label_distribution": {
+    "total_events_per_table": 30,
+    "malicious": {
+      "count": "10-11 events",
+      "percentage": "35%",
+      "definition": "Network flows that represent actual attack activity matching scenario attack_cat from UNSW-NB15"
+    },
+    "benign": {
+      "count": 15,
+      "percentage": "50%",
+      "definition": "Routine enterprise traffic (web browsing, DNS queries, SSH admin connections, file transfers) unrelated to attack progression"
+    },
+    "false_alarm": {
+      "count": "4-5 events",
+      "percentage": "15%",
+      "definition": "Locally anomalous but globally common events; appear suspicious in isolation but represent benign activity"
+    }
+  },
+  
+  "network_topology": {
+    "observation_window_duration_seconds": 1800,
+    "description": "Enterprise network divided into 3 subnets with defined routing constraints",
+    "subnets": {
+      "subnet_1_user": {
+        "name": "User Workstations",
+        "hosts": ["User0", "User1", "User2", "User3", "User4"],
+        "role": "Entry points; where initial compromise typically occurs"
+      },
+      "subnet_2_enterprise": {
+        "name": "Enterprise Services",
+        "hosts": ["Enterprise0", "Enterprise1", "Enterprise2", "Defender"],
+        "role": "Internal infrastructure; targets for lateral movement"
+      },
+      "subnet_3_operational": {
+        "name": "Operational Technology",
+        "hosts": ["OpHost0", "OpServer0", "OpHost1", "OpHost2"],
+        "role": "Critical assets; high-value exfiltration targets"
+      }
+    },
+    "routing_constraints": {
+      "rule_1": "User1 is designated entry point from Subnet 1 to Subnet 2",
+      "rule_2": "Enterprise2 is designated gateway from Subnet 2 to Subnet 3",
+      "rule_3": "All cross-subnet transitions must follow these gateways; no direct Subnet 1 ↔ Subnet 3 connections",
+      "rule_4": "Operational subnet contains critical assets (high-value attack targets)"
+    },
+    "hostname_mapping_strategy": "Deterministic (same UNSW IP maps to same hostname within scenario); use MD5 hash of IP+scenario as tiebreaker"
+  },
+  
+  "unsw_grounding_principles": {
+    "core_principle": "Use UNSW-NB15 dataset as feature template library, NOT as pre-ordered sequences",
+    "key_insights": {
+      "insight_1": "UNSW-NB15 rows are independent flow observations with no inherent causal relationships",
+      "insight_2": "Extract bytes/packets/duration feature distributions from UNSW; synthetically sequence with realistic timings",
+      "insight_3": "Preserve UNSW value ranges; only modify timestamps and network labels during synthesis"
+    },
+    "workflow": {
+      "step_1": "Filter UNSW by scenario attack_cat and protocol/port constraints",
+      "step_2": "Extract feature statistics (duration, bytes, packets, protocol, service)",
+      "step_3": "Assess row count (determines TIER for synthesis)",
+      "step_4": "Use filtered rows as templates for causal chain construction with synthetic timestamping"
+    }
+  },
+  
+  "tiered_synthesis_framework": {
+    "description": "Event generation strategy depends on UNSW row availability after filtering",
+    "TIER_1": {
+      "condition": "≥ 10 rows match scenario filters",
+      "strategy": "Randomly sample 10-11 actual UNSW events",
+      "data_source": "Primary UNSW",
+      "row_modification": "Minimal (only timestamp/hostname assignment)",
+      "_source_label": "UNSW_actual"
+    },
+    "TIER_2": {
+      "condition": "5-9 rows match scenario filters",
+      "strategy": "Use actual rows + parameterized feature-preserving variations",
+      "data_source": "Mixed UNSW + synthetic",
+      "row_modification": "Vary src/dst IPs (within subnet constraints), perturb duration ±20%, scale bytes ±15%",
+      "_source_label": "UNSW_parameterized",
+      "correlation_preservation": "Ensure Corr(bytes, packets) and Corr(bytes, duration) remain consistent with template UNSW data"
+    },
+    "TIER_3": {
+      "condition": "< 5 rows match scenario filters",
+      "strategy": "Use Gaussian KDE fitted to base rows; generate synthetic from distributions",
+      "data_source": "Pure synthesis (KDE-based)",
+      "row_modification": "Generate feature values while preserving scenario-specific ranges and distributions",
+      "_source_label": "UNSW_synthetic_KDE",
+      "validation": "Post-generate, re-validate against feature constraints; resample if needed"
+    }
+  },
+  
+  "false_alarm_taxonomy": {
+    "core_principle": "Locally anomalous but globally common: suspicious in isolation, benign in practice",
+    "type_1": {
+      "name": "Unusual Port + Benign Service",
+      "description": "High-numbered port from trusted admin host with common service",
+      "example": "Port 45678 from Enterprise0 to DNS server (admin tool)",
+      "why_anomalous": "Rare port number",
+      "why_common": "Admin tools use varied ports; DNS queries are routine",
+      "typical_features": {
+        "dport_range": "10000-65535",
+        "src_host_type": "trusted_admin (Enterprise0, Enterprise2, Defender)",
+        "service": "dns",
+        "bytes": "100-1000",
+        "duration_seconds": "0.1-5.0"
+      }
+    },
+    "type_2": {
+      "name": "High Volume + Low-Risk Service",
+      "description": "Large data transfer over normally low-volume protocol",
+      "example": "50MB DNS zone transfer or tunneling",
+      "why_anomalous": "Anomalously high bytes for DNS",
+      "why_common": "DNS tunneling is a known benign technique",
+      "typical_features": {
+        "service": "dns",
+        "bytes": "10000000-100000000",
+        "packets": "1000-10000",
+        "duration_seconds": "30-300",
+        "proto": "tcp"
+      }
+    },
+    "type_3": {
+      "name": "Rare Duration + Benign Context",
+      "description": "Atypical connection duration from benign host",
+      "example": "0.02s SSH connection (rejected login or timeout)",
+      "why_anomalous": "SSH sessions rarely < 0.1s",
+      "why_common": "Failed SSH attempts common in enterprise",
+      "typical_features": {
+        "src_host_type": "benign_internal (User or Enterprise hosts)",
+        "dport": 22,
+        "service": "ssh",
+        "duration_seconds": "0.01-0.05",
+        "bytes": "50-500"
+      }
+    },
+    "distribution_constraints": {
+      "total_per_scenario": "4-5 false alarms",
+      "temporal_isolation": "Must NOT be temporally adjacent to malicious attack chain",
+      "causal_independence": "Must NOT form causal dependencies with malicious events"
+    }
+  },
+  
+  "temporal_architecture_principles": {
+    "description": "5-phase temporal structure simulating realistic attack progression",
+    "observation_window_seconds": 1800,
+    "phase_structure": {
+      "phase_1_benign_baseline": {
+        "timeband_seconds": "0-300",
+        "event_count": "5-7 benign events",
+        "distribution": "Randomly scattered throughout phase",
+        "purpose": "Establish normal baseline traffic before attack"
+      },
+      "phase_2_initial_access_reconnaissance": {
+        "timeband_seconds": "300-600",
+        "event_count": "3-4 malicious events",
+        "distribution": "Sequential timing (25-50s intervals between events)",
+        "purpose": "Attacker probes network, establishes foothold"
+      },
+      "phase_3_lateral_movement_exploitation": {
+        "timeband_seconds": "600-900",
+        "event_count": "3-4 malicious events",
+        "distribution": "Sequential, cross-subnet transitions following topology rules",
+        "purpose": "Attack spreads within network, gains privilege"
+      },
+      "phase_4_objective_execution": {
+        "timeband_seconds": "900-1200",
+        "event_count": "2-3 malicious events",
+        "distribution": "Sequential, culminating in primary objective",
+        "purpose": "Encryption, exfiltration, or backdoor establishment"
+      },
+      "phase_5_benign_recovery": {
+        "timeband_seconds": "1200-1800",
+        "event_count": "7-9 benign events",
+        "distribution": "Randomly scattered; includes false alarm zones at 1200-1300s",
+        "purpose": "Return to normal traffic patterns post-attack"
+      }
+    },
+    "false_alarm_placement": "Scattered in temporally isolated zones (NOT adjacent to malicious chain); typically 600-700s and 1200-1300s",
+    "timestamp_ordering": "All events strictly increasing; no temporal scrambling",
+    "attack_window_coherence": "All malicious events should cluster in ~900s window (not spread over entire 1800s)"
+  },
+  
+  "output_schema": {
+    "format": "CSV",
+    "columns": [
+      "timestamp",
+      "src_host",
+      "dst_host",
+      "src_subnet",
+      "dst_subnet",
+      "proto",
+      "sport",
+      "dport",
+      "service",
+      "duration",
+      "bytes",
+      "packets",
+      "attack_cat",
+      "label"
+    ],
+    "column_ordering": "Exact order REQUIRED",
+    "constraints": {
+      "timestamp": "Strictly increasing (0 ≤ t ≤ 1800 seconds)",
+      "src_host_dst_host": "Must map to defined hosts in network topology",
+      "src_subnet_dst_subnet": "Inferred from hostname; must match topology",
+      "proto": "tcp | udp | http only",
+      "sport": "Ephemeral (1024-65535)",
+      "dport": "Scenario-specific (validated in feature_constraints)",
+      "service": "Must align with dport (80→http, 22→ssh, 53→dns, 21→ftp, 445→smb, etc.)",
+      "duration_bytes_packets": "Internally consistent; preserve UNSW correlations",
+      "attack_cat": "UNSW categories: Normal | Exploits | Worms | Backdoor | Shellcode",
+      "label": "Benign | Malicious | False Alarm (derived from label_distribution)"
+    }
+  },
+  
+  "validation_checkpoints": {
+    "global_sanity_checks": [
+      "Exactly 30 events per scenario",
+      "Label proportions match distribution (±1-2% tolerance)",
+      "All hosts belong to defined network topology",
+      "All timestamps strictly increasing",
+      "Attack window is contiguous and coherent",
+      "False alarms NOT causally connected to malicious chain",
+      "Output schema matches exact column order"
+    ]
+  },
+  
+  "unsw_dataset_reference": {
+    "original_source": "UNSW-NB15",
+    "original_path": "C:\\Users\\groessli\\Documents\\GitHub\\CHART_IDS_Experiment\\IDSD_Datasets\\UNSW_NB15_training-set(in).csv",
+    "transformed_dataset": "UNSW_NB15_transformed.csv",
+    "transformation_method": "Pre-Step schema mapping (Gap 6: IP→host mapping, column alignment, feature aggregation)",
+    "usage": "Use TRANSFORMED dataset for all Steps 0-6; original UNSW is pre-processed in Pre-Step",
+    "transformation_details": {
+      "maps_unsw_ips_to": "Deterministic hostnames (User0-4, Enterprise0-2, Defender, OpHost0-2, OpServer0, external_XXX)",
+      "aggregates_features": "sbytes + dbytes → bytes; spkts + dpkts → packets; infers service from dport",
+      "adds_network_context": "src_subnet, dst_subnet inferred from hostname mapping",
+      "preserves_feature_distributions": "All UNSW values kept; only new columns added (no interpolation)"
+    }
+  }
+}

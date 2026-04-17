@@ -1,0 +1,260 @@
+
+
+{ "scenarios": [
+    {
+      "scenario_name": "WannaCry",
+      "attack_description": "A user in the enterprise downloads and executes a malicious file disguised as legitimate software. The malware establishes a foothold, scans the internal network for vulnerable hosts using SMB, exploits EternalBlue, and propagates laterally. Infected machines execute a payload that encrypts files and generates high-volume file operations across the network.",
+      "entry_point": {
+        "host": "User1",
+        "subnet": "Subnet 1 (User)"
+      },
+      "target_asset": {
+        "host": "OpServer0",
+        "subnet": "Subnet 3 (Operational)"
+      },
+      "key_attack_behaviors": {
+        "initial_access": "User downloads and executes malicious file from external source",
+        "lateral_movement": "SMB scanning and exploitation of internal hosts via port 445",
+        "payload_execution": "Execution of encryption routines and spawning of processes across hosts",
+        "data_exfiltration": "None (focus on encryption and propagation)"
+      },
+      "unsw_filtering": {
+        "attack_cat": ["Exploits", "Worms"],
+        "proto": ["tcp"],
+        "dport": [445],
+        "behavioral_cues": [
+          "high-frequency internal connections",
+          "rapid lateral spread across hosts",
+          "spikes in bytes and packets",
+          "short-duration repeated flows"
+        ]
+      },
+      "feature_constraints": {
+        "duration": null,
+        "bytes": null,
+        "packets": null,
+        "rate": null,
+        "dport": null,
+        "_notes": "To be populated in Step 2 via UNSW extraction and percentile analysis"
+      },
+      "temporal_architecture": {
+        "total_duration": 1800,
+        "phases": null,
+        "false_alarm_zones": null,
+        "_notes": "To be populated in Step 2 based on attack phase analysis"
+      },
+      "false_alarm_distribution": {
+        "type_1_unusual_port_benign_service": null,
+        "type_2_high_volume_low_risk": null,
+        "type_3_rare_duration_benign": null,
+        "_notes": "To be decided in Step 5 based on scenario characteristics"
+      },
+      "expected_tier": null,
+      "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)"
+    },
+    {
+      "scenario_name": "Data Theft (FTP/SSH)",
+      "attack_description": "An attacker gains access to an enterprise host and stages sensitive files for exfiltration. Files are aggregated and transferred internally, then exfiltrated to an external server using FTP or SSH-based protocols. The attack includes intermediate staging steps to obscure the origin of the data.",
+      "entry_point": {
+        "host": "Enterprise1",
+        "subnet": "Subnet 2 (Enterprise)"
+      },
+      "target_asset": {
+        "host": "External FTP/SSH Server",
+        "subnet": "External"
+      },
+      "key_attack_behaviors": {
+        "initial_access": "Unauthorized access to enterprise host via exploit or credential compromise",
+        "lateral_movement": "Movement between enterprise hosts to locate and stage sensitive data",
+        "payload_execution": "Compression or aggregation of files prior to transfer",
+        "data_exfiltration": "Outbound FTP (port 21) or SSH/SCP (port 22) transfer to external server"
+      },
+      "unsw_filtering": {
+        "attack_cat": ["Backdoor", "Exploits"],
+        "proto": ["tcp"],
+        "dport": [21, 22],
+        "behavioral_cues": [
+          "large outbound data transfers",
+          "sustained connections to external IPs",
+          "file staging followed by transfer",
+          "unusual outbound traffic patterns"
+        ]
+      },
+      "feature_constraints": {
+        "duration": null,
+        "bytes": null,
+        "packets": null,
+        "rate": null,
+        "dport": null,
+        "_notes": "To be populated in Step 2 via UNSW extraction and percentile analysis"
+      },
+      "temporal_architecture": {
+        "total_duration": 1800,
+        "phases": null,
+        "false_alarm_zones": null,
+        "_notes": "To be populated in Step 2 based on attack phase analysis"
+      },
+      "false_alarm_distribution": {
+        "type_1_unusual_port_benign_service": null,
+        "type_2_high_volume_low_risk": null,
+        "type_3_rare_duration_benign": null,
+        "_notes": "To be decided in Step 5 based on scenario characteristics"
+      },
+      "expected_tier": null,
+      "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)"
+    },
+    {
+      "scenario_name": "ShellShock",
+      "attack_description": "An attacker exploits a vulnerable web server by sending crafted HTTP requests that trigger the ShellShock vulnerability. This leads to arbitrary command execution via Bash, allowing the attacker to spawn shells, execute system commands, and potentially establish persistence or exfiltrate data.",
+      "entry_point": {
+        "host": "Enterprise2",
+        "subnet": "Subnet 2 (Enterprise)"
+      },
+      "target_asset": {
+        "host": "Enterprise2",
+        "subnet": "Subnet 2 (Enterprise)"
+      },
+      "key_attack_behaviors": {
+        "initial_access": "Malicious HTTP request exploiting ShellShock vulnerability",
+        "lateral_movement": "Limited or none; primarily local command execution",
+        "payload_execution": "Execution of bash commands triggered by HTTP requests",
+        "data_exfiltration": "Optional; may include outbound connections or file access"
+      },
+      "unsw_filtering": {
+        "attack_cat": ["Shellcode"],
+        "proto": ["tcp", "http"],
+        "dport": [80],
+        "behavioral_cues": [
+          "repeated HTTP requests with abnormal payloads",
+          "unexpected bash process execution",
+          "short-lived command execution bursts",
+          "anomalous web-to-shell transitions"
+        ]
+      },
+      "feature_constraints": {
+        "duration": null,
+        "bytes": null,
+        "packets": null,
+        "rate": null,
+        "dport": null,
+        "_notes": "To be populated in Step 2 via UNSW extraction and percentile analysis"
+      },
+      "temporal_architecture": {
+        "total_duration": 1800,
+        "phases": null,
+        "false_alarm_zones": null,
+        "_notes": "To be populated in Step 2 based on attack phase analysis"
+      },
+      "false_alarm_distribution": {
+        "type_1_unusual_port_benign_service": null,
+        "type_2_high_volume_low_risk": null,
+        "type_3_rare_duration_benign": null,
+        "_notes": "To be decided in Step 5 based on scenario characteristics"
+      },
+      "expected_tier": null,
+      "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)"
+    },
+    {
+      "scenario_name": "Netcat Backdoor",
+      "attack_description": "An attacker installs and executes Netcat on a compromised host to open a backdoor listener on a high-numbered port. This allows persistent remote access and command execution. The attacker may subsequently download additional tools or pivot within the network.",
+      "entry_point": {
+        "host": "User2",
+        "subnet": "Subnet 1 (User)"
+      },
+      "target_asset": {
+        "host": "Enterprise0",
+        "subnet": "Subnet 2 (Enterprise)"
+      },
+      "key_attack_behaviors": {
+        "initial_access": "Execution of Netcat binary on compromised host",
+        "lateral_movement": "Optional pivoting to enterprise hosts after establishing foothold",
+        "payload_execution": "Opening of listening port and remote shell access",
+        "data_exfiltration": "Possible secondary activity via established backdoor"
+      },
+      "unsw_filtering": {
+        "attack_cat": ["Backdoor"],
+        "proto": ["tcp"],
+        "dport": ["high_ports"],
+        "behavioral_cues": [
+          "listening on unusual high-numbered ports",
+          "persistent inbound connections",
+          "low-volume but long-duration sessions",
+          "command-and-control style communication"
+        ]
+      },
+      "feature_constraints": {
+        "duration": null,
+        "bytes": null,
+        "packets": null,
+        "rate": null,
+        "dport": null,
+        "_notes": "To be populated in Step 2 via UNSW extraction and percentile analysis"
+      },
+      "temporal_architecture": {
+        "total_duration": 1800,
+        "phases": null,
+        "false_alarm_zones": null,
+        "_notes": "To be populated in Step 2 based on attack phase analysis"
+      },
+      "false_alarm_distribution": {
+        "type_1_unusual_port_benign_service": null,
+        "type_2_high_volume_low_risk": null,
+        "type_3_rare_duration_benign": null,
+        "_notes": "To be decided in Step 5 based on scenario characteristics"
+      },
+      "expected_tier": null,
+      "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)"
+    },
+    {
+      "scenario_name": "passwd-gzip-scp",
+      "attack_description": "An attacker accesses sensitive system files such as /etc/passwd, compresses them using gzip, and transfers them to a remote machine using SCP over SSH. This represents a stealthy data exfiltration workflow leveraging legitimate administrative tools.",
+      "entry_point": {
+        "host": "Enterprise2",
+        "subnet": "Subnet 2 (Enterprise)"
+      },
+      "target_asset": {
+        "host": "External SCP Server",
+        "subnet": "External"
+      },
+      "key_attack_behaviors": {
+        "initial_access": "Unauthorized access to enterprise system via backdoor or credentials",
+        "lateral_movement": "Minimal; focused on local file access",
+        "payload_execution": "Reading and compressing sensitive files (e.g., passwd)",
+        "data_exfiltration": "Secure copy (SCP) transfer over SSH (port 22)"
+      },
+      "unsw_filtering": {
+        "attack_cat": ["Backdoor"],
+        "proto": ["tcp"],
+        "dport": [22],
+        "behavioral_cues": [
+          "file access followed by compression",
+          "scp or ssh-based outbound transfer",
+          "moderate data transfer size",
+          "sequence of read-compress-transfer events"
+        ]
+      },
+      "feature_constraints": {
+        "duration": null,
+        "bytes": null,
+        "packets": null,
+        "rate": null,
+        "dport": null,
+        "_notes": "To be populated in Step 2 via UNSW extraction and percentile analysis"
+      },
+      "temporal_architecture": {
+        "total_duration": 1800,
+        "phases": null,
+        "false_alarm_zones": null,
+        "_notes": "To be populated in Step 2 based on attack phase analysis"
+      },
+      "false_alarm_distribution": {
+        "type_1_unusual_port_benign_service": null,
+        "type_2_high_volume_low_risk": null,
+        "type_3_rare_duration_benign": null,
+        "_notes": "To be decided in Step 5 based on scenario characteristics"
+      },
+      "expected_tier": null,
+      "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)"
+    }
+  ]
+}
