@@ -77,8 +77,9 @@
         "_notes": "To be populated in Step 2 based on attack phase analysis"
       },
       "false_alarm_distribution": {
-        "type_1_unusual_benign": 2,
-        "type_2_high_volume_benign": 3
+        "type_1_unusual_port_benign_service": 2,
+        "type_2_high_volume_low_risk": 2,
+        "type_3_rare_duration_benign": 1
       },
       "expected_tier": 1,
       "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)",
@@ -322,8 +323,9 @@
         "_notes": "To be populated in Step 2 based on attack phase analysis"
       },
       "false_alarm_distribution": {
-        "type_1_unusual_benign": 2,
-        "type_2_high_volume_benign": 3
+        "type_1_unusual_port_benign_service": 2,
+        "type_2_high_volume_low_risk": 2,
+        "type_3_rare_duration_benign": 1
       },
       "expected_tier": 1,
       "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)",
@@ -566,8 +568,9 @@
         "_notes": "To be populated in Step 2 based on attack phase analysis"
       },
       "false_alarm_distribution": {
-        "type_1_unusual_benign": 2,
-        "type_2_high_volume_benign": 3
+        "type_1_unusual_port_benign_service": 2,
+        "type_2_high_volume_low_risk": 2,
+        "type_3_rare_duration_benign": 1
       },
       "expected_tier": 1,
       "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)",
@@ -810,8 +813,9 @@
         "_notes": "To be populated in Step 2 based on attack phase analysis"
       },
       "false_alarm_distribution": {
-        "type_1_unusual_benign": 2,
-        "type_2_high_volume_benign": 3
+        "type_1_unusual_port_benign_service": 2,
+        "type_2_high_volume_low_risk": 2,
+        "type_3_rare_duration_benign": 1
       },
       "expected_tier": 1,
       "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)",
@@ -1045,8 +1049,9 @@
         "_notes": "To be populated in Step 2 based on attack phase analysis"
       },
       "false_alarm_distribution": {
-        "type_1_unusual_benign": 2,
-        "type_2_high_volume_benign": 3
+        "type_1_unusual_port_benign_service": 2,
+        "type_2_high_volume_low_risk": 2,
+        "type_3_rare_duration_benign": 1
       },
       "expected_tier": 1,
       "tier_notes": "To be determined in Step 2 by counting UNSW rows after filtering (TIER 1: >=10, TIER 2: 5-9, TIER 3: <5)",

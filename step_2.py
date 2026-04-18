@@ -252,8 +252,9 @@ def process_step_2(
             templates['scenarios'][scenario_idx]['expected_tier'] = tier
             templates['scenarios'][scenario_idx]['temporal_architecture']['phases'] = get_standard_phases()
             templates['scenarios'][scenario_idx]['false_alarm_distribution'] = {
-                "type_1_unusual_benign": 2,
-                "type_2_high_volume_benign": 3
+                "type_1_unusual_port_benign_service": 2,
+                "type_2_high_volume_low_risk": 2,
+                "type_3_rare_duration_benign": 1
             }
             
             # Store stats for later reference (optional, not required by spec)
