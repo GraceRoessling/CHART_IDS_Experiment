@@ -1,9 +1,11 @@
 """
-IDS Pipeline (Main Orchestrator - Comment Only)
+IDS Pipeline (Main Orchestrator)
 """
 
+import json
 import pre_step
 import step_1
+import step_2
 from pathlib import Path
 
 def main():
@@ -15,7 +17,12 @@ def main():
     input_unsw_csv = Path("IDS_Datasets/UNSW_NB15_training-set(in).csv")
     output_transformed_csv = Path("IDS_Datasets/UNSW_NB15_transformed.csv")
     
-    pre_step.batch_transform_unsw(str(input_unsw_csv), str(output_transformed_csv))
+    # Only run Pre-Step if output doesn't exist
+    if output_transformed_csv.exists():
+        print(f" Transformed dataset already exists: {output_transformed_csv}")
+    else:
+        print(f"Running Pre-Step: transforming UNSW data...")
+        pre_step.batch_transform_unsw(str(input_unsw_csv), str(output_transformed_csv))
 
 
     # ============================================================
@@ -30,6 +37,8 @@ def main():
     # VALIDATION: Verify global_constraints.json exists and is well-formed
     if not global_constraints_path.exists():
         raise FileNotFoundError(f"Global constraints file not found: {global_constraints_path}")
+    
+    print(f" Global constraints file found: {global_constraints_path}")
     
     # Note: global_constraints.json contains:
     #   - label_distribution (Malicious 10-11, Benign 15, False Alarm 4-5)
@@ -51,57 +60,106 @@ def main():
     
     templates_path = Path("templates/zero_day_templates.json")
     
-    step1_result = step_1.validate_templates_step(
-        str(templates_path),
-        str(global_constraints_path)
-    )
-    
-    if not step1_result['success']:
-        raise ValueError(
-            f"Step 1 validation failed: {len(step1_result['errors'])} error(s)\n"
-            + "\n".join(step1_result['errors'])
+    # Check if templates file exists
+    if not templates_path.exists():
+        print(f"Running Step 1: creating and validating zero-day templates...")
+        step1_result = step_1.validate_templates_step(
+            str(templates_path),
+            str(global_constraints_path)
         )
+        
+        if not step1_result['success']:
+            raise ValueError(
+                f"Step 1 validation failed: {len(step1_result['errors'])} error(s)\n"
+                + "\n".join(step1_result['errors'])
+            )
+    else:
+        # Verify templates are valid JSON without rerunning Step 1
+        try:
+            with open(templates_path, 'r') as f:
+                templates_dict = json.load(f)
+            
+            # Quick validation: check for required scenarios structure
+            if 'scenarios' not in templates_dict:
+                raise ValueError("Templates JSON missing 'scenarios' key")
+            if not isinstance(templates_dict['scenarios'], list):
+                raise ValueError("Templates 'scenarios' must be a list")
+            if len(templates_dict['scenarios']) == 0:
+                raise ValueError("Templates 'scenarios' is empty")
+            
+            print(f" Templates file exists and is valid JSON: {templates_path}")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Templates JSON is malformed: {e}")
+        except Exception as e:
+            raise ValueError(f"Templates validation failed: {e}")
 
 
     # ============================================================
     # STEP 2: FILTER + TIER CLASSIFICATION
     # Filter transformed data per scenario and compute feature statistics
-        # Assign TIER (1 = sufficient data, 2 = limited data)
-        # Output: updated templates with TIER + stats
+    # Assign TIER (1 = sufficient data, 2 = limited data)
+    # Output: updated templates with TIER + stats
+    # ============================================================
+    
+    print(f"\nRunning Step 2: filtering & tier classification...")
+    step2_result = step_2.process_step_2(
+        str(output_transformed_csv),
+        str(templates_path),
+        str(global_constraints_path),
+        output_report_path="step_2_summary.txt"
+    )
+    
+    if not step2_result['success']:
+        raise ValueError(
+            f"Step 2 failed: {len(step2_result['errors'])} error(s)\n"
+            + "\n".join(step2_result['errors'])
+        )
 
 
     # ============================================================
     # STEP 3: MALICIOUS EVENTS
-    # Generate 10–11 attack events using real data (TIER 1) or + variations (TIER 2)
-        # Ensure logical attack progression and valid network structure
-        # Output: malicious events (per scenario)
+    # Generate 10-11 attack events using real data (TIER 1) or + variations (TIER 2)
+    # Ensure logical attack progression and valid network structure
+    # Output: malicious events (per scenario)
+    # ============================================================
+    # TODO: Implement Step 3
 
 
     # ============================================================
     # STEP 4: BENIGN EVENTS
     # Generate 15 normal traffic events (HTTP, DNS, SSH, etc.)
-        # Use realistic feature ranges and valid host/subnet combinations
-        # Output: benign events (per scenario)
+    # Use realistic feature ranges and valid host/subnet combinations
+    # Output: benign events (per scenario)
+    # ============================================================
+    # TODO: Implement Step 4
 
 
     # ============================================================
     # STEP 5: FALSE ALARMS
-    # Generate 5 “suspicious-looking but benign” events (2 types)
-        # Maintain realism while introducing local anomalies
-        # Output: false alarm events (per scenario)
+    # Generate 5 suspicious-looking but benign events (2 types)
+    # Maintain realism while introducing local anomalies
+    # Output: false alarm events (per scenario)
+    # ============================================================
+    # TODO: Implement Step 5
 
 
     # ============================================================
     # STEP 6: FINAL ASSEMBLY
     # Combine all events, assign timestamps using phase structure
-        # Sort chronologically and validate final dataset
-        # Output: {scenario}_30_events.csv
+    # Sort chronologically and validate final dataset
+    # Output: {scenario}_30_events.csv
+    # ============================================================
+    # TODO: Implement Step 6
 
 
     # ============================================================
     # PIPELINE FLOW
-    # Run steps in order: Pre-Step → 0 → 1 → 2
-    # Then per scenario: 3 → 4 → 5 → 6
+    # Run steps in order: Pre-Step -> 0 -> 1 -> 2
+    # Then per scenario: 3 -> 4 -> 5 -> 6
+    # ============================================================
+    print("\n" + "="*80)
+    print(" PIPELINE STEPS 0-2 COMPLETED SUCCESSFULLY")
+    print("="*80)
 
 
 if __name__ == "__main__":

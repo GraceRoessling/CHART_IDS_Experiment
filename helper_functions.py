@@ -253,7 +253,7 @@ def validate_attack_cat(attack_cat):
 # SCENARIOS DEFINITION (Shared across pipeline)
 # ============================================================
 
-SCENARIOS = ['WannaCry', 'Data Theft (FTP/SSH)', 'ShellShock', 'Netcat Backdoor', 'passwd-gzip-scp']
+SCENARIOS = ['WannaCry', 'Data_Theft', 'ShellShock', 'Netcat_Backdoor', 'passwd_gzip_scp']
 
 
 # ============================================================

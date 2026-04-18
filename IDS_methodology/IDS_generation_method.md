@@ -360,18 +360,18 @@ UNSW-NB15 and output IDS tables have misaligned schemas:
 
 ## **STEP 1: Structure Zero-Day Templates JSON**
 
-**Objective:** Define per-scenario configuration with fields for both static metadata and analysis-derived data (to be populated in Step 2+).
+**Objective:** Validate per-scenario configuration templates with all required fields present.
 
 **Inputs:**
 - Current `templates/zero_day_templates.json` (existing 5 scenarios)
 - `templates/global_constraints.json`
 
 **Outputs:**
-- Updated `templates/zero_day_templates.json` with new fields (analysis-dependent fields left empty)
+- Validated `templates/zero_day_templates.json` (no new fields added; Step 1 only validates)
 
 ### Step 1 Action Items
 
-1. **Preserve Existing Fields** (do NOT modify):
+1. **Validate Existing Fields** (do NOT modify):
    - `scenario_name`
    - `attack_description`
    - `entry_point`
@@ -379,29 +379,29 @@ UNSW-NB15 and output IDS tables have misaligned schemas:
    - `key_attack_behaviors`
    - `unsw_filtering` (attack_cat, proto, dport constraints)
 
-2. **Add New Fields (leave empty for Step 2+)**:
+2. **Ensure Existing Fields Are Present** (with null values):
 
-   a) **`feature_constraints`** (to be populated in Step 2, validated from UNSW):
+   a) **`feature_constraints`** (populated in Step 2):
    ```json
    "feature_constraints": {
-     "duration": null,  // [min, max] in seconds; from UNSW percentiles
-     "bytes": null,     // [min, max]; from UNSW percentiles
-     "packets": null,   // [min, max]; from UNSW percentiles
-     "rate": null,      // [min, max] flows/sec; from UNSW filtering
-     "dport": null      // Allowed ports; from unsw_filtering.dport
+     "duration": null,
+     "bytes": null,
+     "packets": null,
+     "rate": null,
+     "dport": null
    }
    ```
 
-   b) **`temporal_architecture`** (to be populated in Step 2 after understanding attack phases):
+   b) **`temporal_architecture`** (populated in Step 2):
    ```json
    "temporal_architecture": {
      "total_duration": 1800,
-     "phases": null,     // Array of phase objects; populated based on scenario attack narrative
-     "false_alarm_zones": null  // [[start, end], ...]; placed outside attack progression
+     "phases": null,
+     "false_alarm_zones": null
    }
    ```
 
-   c) **`false_alarm_distribution`** (to be decided per scenario):
+   c) **`false_alarm_distribution`** (populated in Step 2):
    ```json
    "false_alarm_distribution": {
      "type_1_unusual_port_benign_service": null,
@@ -410,185 +410,126 @@ UNSW-NB15 and output IDS tables have misaligned schemas:
    }
    ```
 
-   d) **`expected_tier`** (to be determined in Step 2 via UNSW filtering):
+   d) **`expected_tier`** (determined in Step 2):
    ```json
-   "expected_tier": null  // 1, 2, or 3; based on UNSW row count after filtering
+   "expected_tier": null
    ```
 
-3. **Schema Validation:** Ensure JSON is well-formed.
+3. **Schema Validation:** Ensure JSON is well-formed with all required fields present.
+
+### Step 1 Implementation Notes
+
+**Actual implementation behavior:**
+
+1. **Load & Validate:** The step_1.validate_templates_step() function:
+   - Loads existing `templates/zero_day_templates.json`
+   - Validates structure against `helper_functions.validate_all_templates()`
+   - Ensures all 5 scenarios have required fields
+   - Quick checks for 'scenarios' key and non-empty list
+
+2. **Do NOT Create New Fields:** Fields like `feature_constraints`, `temporal_architecture.phases`, `false_alarm_distribution`, and `expected_tier` are already present in the template JSON with null values. Step 1 does NOT add them—it only validates that they exist.
+
+3. **Error Handling:** If templates JSON is malformed:
+   - Raises JSONDecodeError if JSON syntax is invalid
+   - Raises ValueError if required scenarios structure is missing
+
+4. **Output:** Step 1 saves validated templates back to `templates/zero_day_templates.json` (minimal changes if already valid).
 
 ---
 
 ## **STEP 2: Extract & Validate UNSW Data**
 
-**Objective:** Filter transformed UNSW-NB15 by scenario, extract feature statistics, determine tier classification, and validate against global constraints.
+**Objective:** Filter transformed UNSW-NB15 by scenario, extract feature statistics, determine tier classification, and update templates with computed values.
 
 **Inputs:**
 - `UNSW_NB15_transformed.csv` (output from Pre-Step; schema-aligned)
 - `templates/zero_day_templates.json` (with unsw_filtering rules)
-- `templates/global_constraints.json` (validation thresholds)
+- `templates/global_constraints.json` (validation reference)
 
 **Outputs:**
-- Scenario-specific feature statistics
-- UNSW row counts (determines TIER)
-- Validation report
-- Updated `templates/zero_day_templates.json` with feature_constraints, temporal_architecture scaffolding, false_alarm_distribution, expected_tier
+- Updated `templates/zero_day_templates.json` with:
+  - `expected_tier` (1 or 2)
+  - `temporal_architecture.phases` (standard 5-phase schedule)
+  - `false_alarm_distribution` (2 types: Type 1 + Type 2)
+  - `_step2_stats` (computed statistics including min/max/median/mean for duration/bytes/packets, unique protocols and ports)
+- `step_2_summary.txt` (human-readable report)
 
 ### Step 2 Action Items
 
 #### **CRITICAL: Scenario Filtering (Do This First!)**
 
-The Pre-Step output has 876,705 rows (175,341 UNSW × 5 scenarios). **You must filter by scenario_name before applying any other filters**, or you will mix data from multiple scenarios and corrupt feature statistics.
+The Pre-Step output has 876,705 rows (175,341 UNSW × 5 scenarios). **Filter by scenario_name FIRST**, then apply `unsw_filtering` rules.
 
 ```python
 import pandas as pd
 
 # Load transformed dataset
 transformed_df = pd.read_csv("UNSW_NB15_transformed.csv")
-print(f"Loaded {len(transformed_df)} total transformed rows (5 scenarios mixed)")
+print(f"Loaded {len(transformed_df)} total rows (all scenarios mixed)")
 
-# CRITICAL: Filter to current scenario FIRST
-scenario_name = 'WannaCry'  # or Data_Theft, ShellShock, etc.
+# CRITICAL: Filter to scenario FIRST
+scenario_name = 'WannaCry'  # or Data_Theft, ShellShock, Netcat_Backdoor, passwd_gzip_scp
 scenario_df = transformed_df[transformed_df['scenario_name'] == scenario_name].copy()
 print(f"After scenario filter: {len(scenario_df)} rows for {scenario_name}")
 
-# NOW apply scenario-specific UNSW filters
-unsw_filters = {
-    'attack_cat': ['Exploits', 'Worms'],  # Example for WannaCry
-    'proto': ['tcp'],
-    'dport': [445, 139]  # SMB ports
-}
+# NOW apply unsw_filtering rules (typically attack_cat only; proto/dport are empty arrays)
+unsw_filters = scenario_template['unsw_filtering']
+# unsw_filters = {'attack_cat': ['Exploits', 'Worms'], 'proto': [], 'dport': []}
 
-filtered_df = scenario_df.copy()
-for col, values in unsw_filters.items():
-    if col in filtered_df.columns:
-        filtered_df = filtered_df[filtered_df[col].isin(values)]
-        print(f"After {col} filter: {len(filtered_df)} rows")
+if unsw_filters.get('attack_cat'):
+    filtered_df = scenario_df[scenario_df['attack_cat'].isin(unsw_filters['attack_cat'])].copy()
+    print(f"After attack_cat filter: {len(filtered_df)} rows")
+# Note: proto and dport are empty arrays in actual templates, so skipped
 ```
 
-1. **For each scenario, load transformed data and apply scenario filter first:**
+**Step 2 Filtering Strategy:**
 
-   ```python
-   import pandas as pd
-   
-   # Load transformed dataset (from Pre-Step output)
-   transformed_df = pd.read_csv("UNSW_NB15_transformed.csv")
-   print(f"Loaded {len(transformed_df)} transformed rows")
-   
-   # Note: transformed_df has 5x rows (one for each scenario's IP mapping)
-   # Filter to current scenario using the scenario_name column added in Pre-Step
-   ```
+1. **Scenario Name Filter:** All scenarios have scenario-specific names added in Pre-Step:
+   - `WannaCry`
+   - `Data_Theft` (underscore, not space)
+   - `ShellShock`
+   - `Netcat_Backdoor` (underscore)
+   - `passwd_gzip_scp` (underscore)
 
-2. **Filter by scenario's `unsw_filtering` rules:**
+2. **UNSW Filter:** Only `attack_cat` field is typically used for filtering. The `proto` and `dport` arrays are usually empty (no additional filtering).
 
-   ```python
-   # Example (WannaCry)
-   filters = {
-       "attack_cat": ["Exploits", "Worms"]
-   }
-   
-   # Filter for current scenario first (scenario_name column added in Pre-Step)
-   filtered_df = transformed_df[transformed_df['scenario_name'] == scenario_name].copy()
-   print(f"Scenario {scenario_name}: {len(filtered_df)} rows after scenario filter")
-   
-   # Apply attack_cat filter
-   for col, values in filters.items():
-       if col in filtered_df.columns:
-           filtered_df = filtered_df[filtered_df[col].isin(values)]
-   
-   # Additional scenario-specific filters (from unsw_filtering)
-   scenario_config = zero_day_templates['scenarios'][0]  # WannaCry
-   unsw_filters = scenario_config['unsw_filtering']
-   
-   if 'dport' in unsw_filters and unsw_filters['dport']:
-       filtered_df = filtered_df[filtered_df['dport'].isin(unsw_filters['dport'])]
-   
-   if 'proto' in unsw_filters and unsw_filters['proto']:
-       filtered_df = filtered_df[filtered_df['proto'].isin(unsw_filters['proto'])]
-   ```
-
-3. **Compute feature statistics (percentiles):**
+3. **Compute Feature Statistics:**
    ```python
    stats = {
-     "row_count": len(filtered_df),
-     "duration": {
-       "min": filtered_df['duration'].min(),
-       "max": filtered_df['duration'].max(),
-       "p5": filtered_df['duration'].quantile(0.05),
-       "p95": filtered_df['duration'].quantile(0.95),
-       "mean": filtered_df['duration'].mean(),
-       "median": filtered_df['duration'].median()
-     },
-     "bytes": { /* similar */ },
-     "packets": { /* similar */ },
-     "dport_unique": filtered_df['dport'].unique().tolist(),
-     "proto_unique": filtered_df['proto'].unique().tolist()
+       'row_count': len(filtered_df),
+       'duration_min': float(filtered_df['duration'].min()),
+       'duration_max': float(filtered_df['duration'].max()),
+       'duration_median': float(filtered_df['duration'].median()),
+       'duration_mean': float(filtered_df['duration'].mean()),
+       'bytes_min': int(filtered_df['bytes'].min()),
+       'bytes_max': int(filtered_df['bytes'].max()),
+       'bytes_median': int(filtered_df['bytes'].median()),
+       'bytes_mean': float(filtered_df['bytes'].mean()),
+       'packets_min': int(filtered_df['packets'].min()),
+       'packets_max': int(filtered_df['packets'].max()),
+       'packets_median': int(filtered_df['packets'].median()),
+       'packets_mean': float(filtered_df['packets'].mean()),
+       'proto_unique': filtered_df['proto'].unique().tolist(),
+       'dport_unique': sorted(filtered_df['dport'].unique().tolist()),
    }
    ```
 
-   d) **Determine TIER classification:**
+4. **Determine TIER Classification:**
    ```python
-   # TIER classification (simplified: TIER 1 or TIER 2 only)
    if len(filtered_df) >= 10:
-       tier = 1  # Use actual UNSW events
+       tier = 1  # Sufficient real UNSW data
    elif len(filtered_df) >= 5:
-       tier = 2  # Mix actual + parameterized variations
+       tier = 2  # Mix real + parameterized variations
    else:
-       raise ValueError(f"{scenario_name}: Only {len(filtered_df)} UNSW rows after filtering. "
-                        f"Minimum 5 required for TIER 2. Review unsw_filtering rules.")
-   
-   # Basic sanity check: non-empty dataset
-   if len(filtered_df) == 0:
-       raise ValueError(f"{scenario_name}: No UNSW rows match filters. Review attack_cat/proto/dport constraints.")
-   
-   print(f"✅ {scenario_name}: {len(filtered_df)} filtered rows → TIER {tier}")
+       # Raise error if insufficient data
+       raise ValueError(f"{scenario_name}: Only {len(filtered_df)} rows. Minimum 5 required.")
    ```
 
-2. **Compute Percentile Ranges (for informational purposes):**
-
-   ```python
-   # Simple feature statistics extraction (no complex validation)
-   def compute_feature_stats(df, scenario_name):
-       """Extract percentile ranges from filtered data."""
-       stats = {
-           'scenario': scenario_name,
-           'row_count': len(df),
-           'duration_min': df['duration'].min(),
-           'duration_max': df['duration'].max(),
-           'duration_median': df['duration'].median(),
-           'bytes_min': df['bytes'].min(),
-           'bytes_max': df['bytes'].max(),
-           'bytes_median': df['bytes'].median(),
-           'packets_min': df['packets'].min(),
-           'packets_max': df['packets'].max(),
-       }
-       print(f"  Duration range: {stats['duration_min']:.2f}s - {stats['duration_max']:.2f}s (median: {stats['duration_median']:.2f}s)")
-       print(f"  Bytes range: {stats['bytes_min']} - {stats['bytes_max']} (median: {stats['bytes_median']})")
-       return stats
-   ```
-
-3. **Create Summary Report (printed to console):**
-
-   For each scenario, print:
-   - Number of UNSW rows after filtering
-   - Assigned TIER
-   - Feature statistics (duration/bytes ranges)
-
-   Example output:
-   ```yaml
-   WannaCry:
-     unsw_rows_after_filtering: 312
-     tier: 1
-     duration_stats: min=0.03s, max=15.2s, median=0.6s
-     bytes_stats: min=200, max=85000, median=2400
-     status: ✅ Ready for synthesis
-   ```
-
-3. **Update `templates/zero_day_templates.json`** with computed TIER:
+5. **Update Templates JSON** with:
 
    a) **`expected_tier`** = computed TIER (1 or 2)
 
-   b) **`temporal_architecture.phases`** (standard schedule for all scenarios):
+   b) **`temporal_architecture.phases`** (same for all scenarios):
    ```json
    "phases": [
      {"name": "benign_baseline", "start": 0, "end": 300, "event_count": 6},
@@ -599,13 +540,64 @@ for col, values in unsw_filters.items():
    ]
    ```
 
-   c) **`false_alarm_distribution`** (simplified to 2 types; see Step 5):
+   c) **`false_alarm_distribution`** (2 types, 5 total events):
    ```json
-   {
+   "false_alarm_distribution": {
      "type_1_unusual_benign": 2,
      "type_2_high_volume_benign": 3
    }
    ```
+
+   d) **`_step2_stats`** (NEW field with computed statistics):
+   ```json
+   "_step2_stats": {
+     "scenario": "WannaCry",
+     "row_count": 33523,
+     "duration_min": 0.0,
+     "duration_max": 60.0,
+     "duration_median": 0.49,
+     "duration_mean": 2.26,
+     "bytes_min": 60,
+     "bytes_max": 13027669,
+     "bytes_median": 1624,
+     "bytes_mean": 45191.0,
+     "packets_min": 1,
+     "packets_max": 11068,
+     "packets_median": 18,
+     "packets_mean": 55.0,
+     "proto_unique": ["tcp", "ospf", "encap", ...],
+     "dport_unique": [20, 21, 22, 25, ...]
+   }
+   ```
+
+6. **Generate Report:** Save summary to `step_2_summary.txt` with UTF-8 encoding (handles all character types).
+
+### Step 2 Implementation Results
+
+**Actual execution (5 scenarios):**
+
+| Scenario | UNSW Rows | TIER | Duration (median) | Bytes (median) | Packets (median) |
+|----------|-----------|------|-------------------|---|---|
+| WannaCry | 33,523 | 1 | 0.49s | 1,624 B | 18 |
+| Data_Theft | 35,139 | 1 | 0.45s | 1,420 B | 18 |
+| ShellShock | 33,393 | 1 | 0.49s | 1,628 B | 18 |
+| Netcat_Backdoor | 1,746 | 1 | 0.00s | 200 B | 2 |
+| passwd_gzip_scp | 1,746 | 1 | 0.00s | 200 B | 2 |
+
+✅ **All scenarios achieved TIER 1** (≥10 UNSW rows available after filtering)
+
+### Step 2 Implementation Notes
+
+1. **Scenario Names:** Use underscores, not spaces or hyphens:
+   - `Data_Theft` (not "Data Theft" or "Data-Theft")
+   - `Netcat_Backdoor` (not "Netcat Backdoor")
+   - `passwd_gzip_scp` (not "passwd-gzip-scp")
+
+2. **Filtering Strategy:** Only `attack_cat` filtering is applied. The `proto` and `dport` arrays in `unsw_filtering` are empty arrays, so no filtering occurs on those fields.
+
+3. **Statistics Storage:** Computed stats are stored in the new `_step2_stats` field for reference during later steps (malicious/benign/false alarm generation).
+
+4. **Report Output:** The `step_2_summary.txt` file uses UTF-8 encoding to handle all character types and is saved with clear formatting showing each scenario's results.
 
 ---
 
