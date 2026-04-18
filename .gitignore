@@ -1,0 +1,4 @@
+# IDS Datasets - ignore all files in the IDS_Datasets directory
+IDS_Datasets/CICIDS2017_Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv
+IDS_Datasets/UNSW_NB15_training-set(in).csv
+IDS_Datasets/UNSW_NB15_transformed.csv
