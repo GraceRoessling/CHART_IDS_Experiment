@@ -9,6 +9,7 @@ import step_2
 import step_3
 import step_4
 import step_5
+import step_6
 from pathlib import Path
 
 def main():
@@ -191,17 +192,38 @@ def main():
     # Sort chronologically and validate final dataset
     # Output: {scenario}_30_events.csv
     # ============================================================
-    # TODO: Implement Step 6
+    
+    print(f"\nRunning Step 6: assembling 30-event tables with temporal ordering...")
+    step6_result = step_6.assemble_30_events_step_6(
+        str(templates_path),
+        output_dir="IDS_tables",
+        output_report_path="step_6_summary.txt",
+        random_seed=42
+    )
+    
+    if not step6_result['success']:
+        print(f"\n[WARN] Step 6 completed with warnings/errors:")
+        for err in step6_result['errors']:
+            print(f"  - {err}")
+    else:
+        print(f"[OK] Step 6 completed successfully")
+    
+    print(f"\n  Generated CSV files:")
+    for scenario, csv_path in step6_result['csv_paths'].items():
+        print(f"    - {csv_path}")
 
 
     # ============================================================
     # PIPELINE FLOW
-    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3 -> 4 -> 5
-    # Then per scenario: 6
+    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6
     # ============================================================
     print("\n" + "="*80)
-    print(" PIPELINE STEPS 0-5 COMPLETED SUCCESSFULLY")
+    print(" PIPELINE COMPLETE: PRE-STEP THROUGH STEP 6")
     print("="*80)
+    print(f"\nFinal outputs in IDS_tables/ folder:")
+    for scenario in step6_result['csv_paths'].keys():
+        print(f"  [OK] {scenario}_30_events.csv")
+    print(f"\nSummary report: step_6_summary.txt")
 
 
 if __name__ == "__main__":

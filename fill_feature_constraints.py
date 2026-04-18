@@ -29,7 +29,7 @@ def fill_feature_constraints(templates_path):
         stats = scenario.get('_step2_stats', {})
         
         if not stats:
-            print(f"⚠️  {scenario_name}: No _step2_stats found, skipping.")
+            print(f"[WARN] {scenario_name}: No _step2_stats found, skipping.")
             continue
         
         # Extract ranges from statistics
@@ -84,7 +84,7 @@ def fill_feature_constraints(templates_path):
         
         scenario['feature_constraints'] = feature_constraints
         
-        print(f"✅ {scenario_name}:")
+        print(f"[OK] {scenario_name}:")
         print(f"   Duration: {duration_min:.6f}s - {duration_max:.6f}s (median: {duration_median:.6f}s)")
         print(f"   Bytes: {bytes_min} - {bytes_max} (median: {bytes_median})")
         print(f"   Packets: {packets_min} - {packets_max} (median: {packets_median})")
@@ -95,7 +95,7 @@ def fill_feature_constraints(templates_path):
     with open(templates_path, 'w') as f:
         json.dump(templates, f, indent=2)
     
-    print(f"\n✅ Updated {templates_path}")
+    print(f"\n[OK] Updated {templates_path}")
 
 
 if __name__ == '__main__':

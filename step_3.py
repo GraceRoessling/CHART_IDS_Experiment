@@ -188,7 +188,7 @@ def generate_malicious_events_step_3(
                     )
                 
                 malicious_events_per_scenario[scenario_name] = events
-                print(f"    ✓ Generated {len(events)} malicious events")
+                print(f"    [OK] Generated {len(events)} malicious events")
                 
             except Exception as e:
                 errors.append(f"Error generating {scenario_name}: {str(e)}")
@@ -370,7 +370,7 @@ def _assign_events_to_phases(scenario_name, rows_df, template):
 
 def _row_to_event(row, scenario_name, timestamp, phase, source):
     """
-    Convert UNSW row to malicious event dictionary.
+    Convert UNSW row to malicious event dictionary (preserves ALL 23 columns).
     
     Args:
         row (dict or pd.Series): UNSW row
@@ -380,7 +380,7 @@ def _row_to_event(row, scenario_name, timestamp, phase, source):
         source (str): 'UNSW_actual' or 'UNSW_parameterized'
     
     Returns:
-        dict: Event dictionary with required fields
+        dict: Event dictionary with all 23 required columns
     """
     
     if isinstance(row, pd.Series):
@@ -417,8 +417,17 @@ def _row_to_event(row, scenario_name, timestamp, phase, source):
         'duration': float(row.get('duration', 0.0)),
         'bytes': int(row.get('bytes', 0)),
         'packets': int(row.get('packets', 0)),
+        'sttl': int(row.get('sttl', 64)),
+        'dttl': int(row.get('dttl', 64)),
+        'state': row.get('state', 'CON'),
+        'sloss': int(row.get('sloss', 0)),
+        'dloss': int(row.get('dloss', 0)),
+        'ct_src_dport_ltm': int(row.get('ct_src_dport_ltm', 1)),
+        'ct_dst_src_ltm': int(row.get('ct_dst_src_ltm', 1)),
         'attack_cat': row.get('attack_cat', 'Unknown'),
         'label': 'Malicious',
+        '_unsw_row_id': int(row.get('_unsw_row_id', -1)),
+        'scenario_name': scenario_name,
         'phase': phase,
         '_source': source,
     }

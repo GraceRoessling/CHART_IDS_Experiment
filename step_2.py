@@ -190,7 +190,7 @@ def process_step_2(
     try:
         print(f"\nLoading transformed dataset from {transformed_csv_path}...")
         transformed_df = pd.read_csv(transformed_csv_path)
-        print(f"  ✓ Loaded {len(transformed_df)} total rows (all scenarios mixed)")
+        print(f"  [OK] Loaded {len(transformed_df)} total rows (all scenarios mixed)")
     except FileNotFoundError:
         raise FileNotFoundError(f"Transformed CSV not found: {transformed_csv_path}")
     except Exception as e:
@@ -296,8 +296,8 @@ def process_step_2(
         report_lines.append("OK - Feature constraints populated from statistics")
     except Exception as e:
         error_msg = f"Failed to fill feature_constraints: {str(e)}"
-        print(f"  ⚠️  {error_msg}")
-        report_lines.append(f"⚠️  {error_msg}")
+        print(f"  [WARN] {error_msg}")
+        report_lines.append(f"[WARN] {error_msg}")
         # Don't add to errors list - this is non-critical
     
     # Save report

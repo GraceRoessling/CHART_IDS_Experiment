@@ -161,7 +161,7 @@ def generate_benign_events_step_4(
                 )
                 
                 benign_events_per_scenario[scenario_name] = events
-                print(f"    ✓ Generated {len(events)} benign events")
+                print(f"    [OK] Generated {len(events)} benign events")
                 
             except Exception as e:
                 errors.append(f"Error generating {scenario_name}: {str(e)}")
@@ -275,15 +275,13 @@ def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, templa
         packets_total = max(service_template['packets_range'][0], 
                            min(service_template['packets_range'][1], packets_total))
         
-        # Build event dictionary
+        # Build event dictionary (all 23 columns)
         event = {
             'timestamp': timestamps[idx],
             'src_host': src_host,
             'dst_host': dst_host,
             'src_subnet': src_subnet,
             'dst_subnet': dst_subnet,
-            'src_ip': src_ip,
-            'dst_ip': dst_ip,
             'proto': proto,
             'sport': row.get('sport', random.randint(1024, 65535)),
             'dport': dport,
@@ -291,19 +289,17 @@ def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, templa
             'duration': duration,
             'bytes': bytes_total,
             'packets': packets_total,
-            'sbytes': bytes_total // 2,  # Rough split
-            'dbytes': bytes_total - (bytes_total // 2),
-            'spkts': packets_total // 2,  # Rough split
-            'dpkts': packets_total - (packets_total // 2),
+            'sttl': int(row.get('sttl', 64 if random.random() > 0.3 else 128)),
+            'dttl': int(row.get('dttl', 64 if random.random() > 0.3 else 128)),
+            'state': row.get('state', 'CON'),
+            'sloss': int(row.get('sloss', 0)),
+            'dloss': int(row.get('dloss', 0)),
+            'ct_src_dport_ltm': int(row.get('ct_src_dport_ltm', 1)),
+            'ct_dst_src_ltm': int(row.get('ct_dst_src_ltm', 1)),
             'attack_cat': 'Normal',
             'label': 'Benign',
-            'state': row.get('state', 'CON'),
-            'sttl': row.get('sttl', 64 if random.random() > 0.3 else 128),
-            'dttl': row.get('dttl', 64 if random.random() > 0.3 else 128),
-            'sloss': 0,
-            'dloss': 0,
-            'ct_src_dport_ltm': 1,
-            'ct_dst_src_ltm': 1,
+            '_unsw_row_id': int(row.get('_unsw_row_id', idx)),
+            'scenario_name': scenario_name,
             '_source': 'UNSW_benign',
         }
         

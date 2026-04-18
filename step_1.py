@@ -62,7 +62,7 @@ def validate_templates_step(templates_path, constraints_path, output_path=None):
     print("\n[1/4] Loading templates...")
     try:
         templates = load_templates(templates_path)
-        print(f"  ✓ Loaded {templates_path}")
+        print(f"  [OK] Loaded {templates_path}")
     except FileNotFoundError as e:
         result['errors'].append(str(e))
         print(f"  ✗ {e}")
@@ -79,7 +79,7 @@ def validate_templates_step(templates_path, constraints_path, output_path=None):
     try:
         with open(constraints_path, 'r') as f:
             constraints = json.load(f)
-        print(f"  ✓ Loaded {constraints_path}")
+        print(f"  [OK] Loaded {constraints_path}")
     except FileNotFoundError as e:
         result['warnings'].append(f"Global constraints file not found: {constraints_path}")
         print(f"  ⚠ Global constraints not available for cross-validation")
@@ -100,7 +100,7 @@ def validate_templates_step(templates_path, constraints_path, output_path=None):
     result['errors'].extend(validation['errors'])
     
     if validation['valid']:
-        print(f"  ✓ All {validation['total_scenarios']} scenarios have valid structure")
+        print(f"  [OK] All {validation['total_scenarios']} scenarios have valid structure")
     else:
         print(f"  ✗ Validation failed: {len(validation['errors'])} error(s)")
         for error in validation['errors']:
@@ -161,7 +161,7 @@ def validate_templates_step(templates_path, constraints_path, output_path=None):
     print("\n[4/4] Saving validated templates...")
     try:
         save_templates(templates, output_path)
-        print(f"  ✓ Saved validated templates to {output_path}")
+        print(f"  [OK] Saved validated templates to {output_path}")
     except Exception as e:
         result['errors'].append(f"Failed to save templates: {e}")
         print(f"  ✗ {e}")
@@ -177,7 +177,7 @@ def validate_templates_step(templates_path, constraints_path, output_path=None):
     print("-"*70)
     print(f"Total Scenarios: {result['total_scenarios']}")
     print(f"Valid Scenarios: {result['valid_scenarios']}")
-    print(f"Status: {'✓ PASS' if result['success'] else '✗ FAIL'}")
+    print(f"Status: {'[PASS]' if result['success'] else '[FAIL]'}")
     
     if result['errors']:
         print(f"\nErrors ({len(result['errors'])}):")
@@ -190,7 +190,7 @@ def validate_templates_step(templates_path, constraints_path, output_path=None):
             print(f"  ⚠ {warning}")
     
     if result['success']:
-        print("\n✅ Templates validated successfully and ready for Step 2")
+        print("\n[OK] Templates validated successfully and ready for Step 2")
         print("   Next: Apply UNSW filtering and compute feature statistics")
     
     print("="*70 + "\n")

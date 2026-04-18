@@ -1,0 +1,221 @@
+================================================================================
+STEP 6: FINAL 30-EVENT IDS TABLE ASSEMBLY
+================================================================================
+
+Timestamp: 2026-04-18 11:16:35.782190
+Output Directory: IDS_tables
+Random Seed: 42
+
+
+================================================================================
+Scenario: WannaCry
+================================================================================
+CSV Path: IDS_tables\WannaCry_30_events.csv
+Row Count: 30
+Column Count: 23
+
+Column Order:
+   1. timestamp
+   2. src_host
+   3. dst_host
+   4. src_subnet
+   5. dst_subnet
+   6. proto
+   7. sport
+   8. dport
+   9. service
+  10. duration
+  11. bytes
+  12. packets
+  13. sttl
+  14. dttl
+  15. state
+  16. sloss
+  17. dloss
+  18. ct_src_dport_ltm
+  19. ct_dst_src_ltm
+  20. attack_cat
+  21. label
+  22. _unsw_row_id
+  23. scenario_name
+
+Label Distribution:
+  Malicious: 10 ( 33.3%)
+  Benign: 15 ( 50.0%)
+  False Alarm:  5 ( 16.7%)
+
+Time Range:
+  Min: 7.5s
+  Max: 1774.3s
+
+================================================================================
+Scenario: Data_Theft
+================================================================================
+CSV Path: IDS_tables\Data_Theft_30_events.csv
+Row Count: 30
+Column Count: 23
+
+Column Order:
+   1. timestamp
+   2. src_host
+   3. dst_host
+   4. src_subnet
+   5. dst_subnet
+   6. proto
+   7. sport
+   8. dport
+   9. service
+  10. duration
+  11. bytes
+  12. packets
+  13. sttl
+  14. dttl
+  15. state
+  16. sloss
+  17. dloss
+  18. ct_src_dport_ltm
+  19. ct_dst_src_ltm
+  20. attack_cat
+  21. label
+  22. _unsw_row_id
+  23. scenario_name
+
+Label Distribution:
+  Malicious: 10 ( 33.3%)
+  Benign: 15 ( 50.0%)
+  False Alarm:  5 ( 16.7%)
+
+Time Range:
+  Min: 7.5s
+  Max: 1765.8s
+
+================================================================================
+Scenario: ShellShock
+================================================================================
+CSV Path: IDS_tables\ShellShock_30_events.csv
+Row Count: 31
+Column Count: 23
+
+Column Order:
+   1. timestamp
+   2. src_host
+   3. dst_host
+   4. src_subnet
+   5. dst_subnet
+   6. proto
+   7. sport
+   8. dport
+   9. service
+  10. duration
+  11. bytes
+  12. packets
+  13. sttl
+  14. dttl
+  15. state
+  16. sloss
+  17. dloss
+  18. ct_src_dport_ltm
+  19. ct_dst_src_ltm
+  20. attack_cat
+  21. label
+  22. _unsw_row_id
+  23. scenario_name
+
+Label Distribution:
+  Malicious: 11 ( 35.5%)
+  Benign: 15 ( 48.4%)
+  False Alarm:  5 ( 16.1%)
+
+Time Range:
+  Min: 7.5s
+  Max: 1770.0s
+
+================================================================================
+Scenario: Netcat_Backdoor
+================================================================================
+CSV Path: IDS_tables\Netcat_Backdoor_30_events.csv
+Row Count: 30
+Column Count: 23
+
+Column Order:
+   1. timestamp
+   2. src_host
+   3. dst_host
+   4. src_subnet
+   5. dst_subnet
+   6. proto
+   7. sport
+   8. dport
+   9. service
+  10. duration
+  11. bytes
+  12. packets
+  13. sttl
+  14. dttl
+  15. state
+  16. sloss
+  17. dloss
+  18. ct_src_dport_ltm
+  19. ct_dst_src_ltm
+  20. attack_cat
+  21. label
+  22. _unsw_row_id
+  23. scenario_name
+
+Label Distribution:
+  Malicious: 10 ( 33.3%)
+  Benign: 15 ( 50.0%)
+  False Alarm:  5 ( 16.7%)
+
+Time Range:
+  Min: 7.5s
+  Max: 1770.0s
+
+================================================================================
+Scenario: passwd_gzip_scp
+================================================================================
+CSV Path: IDS_tables\passwd_gzip_scp_30_events.csv
+Row Count: 30
+Column Count: 23
+
+Column Order:
+   1. timestamp
+   2. src_host
+   3. dst_host
+   4. src_subnet
+   5. dst_subnet
+   6. proto
+   7. sport
+   8. dport
+   9. service
+  10. duration
+  11. bytes
+  12. packets
+  13. sttl
+  14. dttl
+  15. state
+  16. sloss
+  17. dloss
+  18. ct_src_dport_ltm
+  19. ct_dst_src_ltm
+  20. attack_cat
+  21. label
+  22. _unsw_row_id
+  23. scenario_name
+
+Label Distribution:
+  Malicious: 10 ( 33.3%)
+  Benign: 15 ( 50.0%)
+  False Alarm:  5 ( 16.7%)
+
+Time Range:
+  Min: 7.5s
+  Max: 1770.0s
+
+
+================================================================================
+FINAL SUMMARY
+================================================================================
+Total Scenarios Processed: 5
+Successful CSVs: 5
+Errors: 0

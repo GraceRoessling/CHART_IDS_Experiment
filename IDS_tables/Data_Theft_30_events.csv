@@ -1,0 +1,31 @@
+timestamp,src_host,dst_host,src_subnet,dst_subnet,proto,sport,dport,service,duration,bytes,packets,sttl,dttl,state,sloss,dloss,ct_src_dport_ltm,ct_dst_src_ltm,attack_cat,label,_unsw_row_id,scenario_name
+7.50322656680008,Enterprise0,external_57,Subnet 2 (Enterprise),External,tcp,57093,21,ftp,5.0,100000,50,254,252,FIN,4,3,1,3,Normal,Benign,100109,Data_Theft
+66.96322144464682,Enterprise1,Enterprise0,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,49807,21,ftp,5.0,100000,50,31,29,FIN,21,197,1,3,Normal,Benign,14181,Data_Theft
+82.50879551073578,Enterprise1,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,48468,80,http,0.5,500,5,31,29,FIN,7,30,1,1,Normal,Benign,40421,Data_Theft
+191.82803953736513,Enterprise2,User1,Subnet 2 (Enterprise),Subnet 1 (User),tcp,7214,3389,rdp,30.0,5000,50,31,29,FIN,6,6,1,2,Normal,Benign,31533,Data_Theft
+203.00984622687338,Enterprise0,external_75,Subnet 2 (Enterprise),External,tcp,14351,80,http,0.538802,500,5,31,29,FIN,7,7,1,5,Normal,Benign,34697,Data_Theft
+220.94136424920373,User0,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,25044,3389,rdp,30.0,5000,50,31,29,FIN,7,14,1,2,Normal,Benign,35399,Data_Theft
+304.4608978385242,external_Enterprise0,external_OpHost0,External,External,tcp,55912,5000,-,1.07348,2020,20,254,252,FIN,3,2,1,3,Fuzzers,Malicious,86063,Data_Theft
+350.43469416314707,external_external_137,external_Defender,External,External,tcp,57427,110,pop3,1.279892,35990,68,62,252,FIN,7,20,1,1,DoS,Malicious,61402,Data_Theft
+402.10960909842635,external_User2,external_external_187,External,External,udp,47250,53,dns,0.001018,324,4,31,29,CON,0,0,1,2,Normal,Malicious,28583,Data_Theft
+450.14898609719035,external_User1,external_Enterprise0,External,External,tcp,13118,20,ftp-data,0.740877,9248,20,31,29,FIN,1,4,1,7,Normal,Malicious,35846,Data_Theft
+501.639784811027,external_Enterprise0,external_OpHost2,External,External,tcp,48350,80,http,0.321206,2754,18,62,252,FIN,2,2,1,1,Exploits,Malicious,82045,Data_Theft
+578.7901646607752,external_User2,external_OpHost2,External,External,udp,63813,53,dns,9e-06,114,2,254,0,INT,0,0,16,29,Generic,Malicious,156236,Data_Theft
+650.199019772629,external_User1,external_Defender,External,External,tcp,19219,5000,-,0.1271,4636,48,31,29,FIN,6,6,1,1,Normal,Malicious,29031,Data_Theft
+726.4912823801499,external_Enterprise1,external_OpHost2,External,External,udp,61776,5000,-,7e-06,496,2,254,0,INT,0,0,1,1,Fuzzers,Malicious,63606,Data_Theft
+806.4988443777952,external_Defender,external_OpServer0,External,External,tp++,20440,5000,-,7e-06,200,2,254,0,INT,0,0,1,5,DoS,Malicious,104934,Data_Theft
+905.4494148060321,external_User4,external_Enterprise0,External,External,udp,19976,5000,-,0.001609,832,8,31,29,CON,0,0,1,4,Normal,Malicious,38027,Data_Theft
+1005.1990077424488,Enterprise0,external_96,Subnet 2 (Enterprise),External,tcp,53435,3389,rdp,30.0,5000,50,31,29,CON,0,0,1,5,Normal,Benign,11431,Data_Theft
+1033.6594545112628,Enterprise0,external_85,Subnet 2 (Enterprise),External,tcp,19989,22601,smtp,1.1970249000000002,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown
+1124.3835998494253,User0,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,24909,80,http,0.786837,500,5,254,252,FIN,2,3,1,2,Normal,Benign,47634,Data_Theft
+1176.3524976325573,User2,external_34,Subnet 1 (User),External,tcp,17792,25,smtp,1.0,1000,5,31,29,FIN,11,15,1,4,Normal,Benign,27021,Data_Theft
+1218.5491686760297,Enterprise1,external_36,Subnet 2 (Enterprise),External,tcp,55688,25256,dns,0.1,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown
+1219.3432753666928,User2,external_46,Subnet 1 (User),External,tcp,62408,25,smtp,1.0,150270,300,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown
+1272.2004132143934,User3,external_6,Subnet 1 (User),External,tcp,24822,53,dns,0.033059,50,1,31,29,FIN,7,24,1,2,Normal,Benign,32290,Data_Theft
+1320.7452062733782,Enterprise2,external_42,Subnet 2 (Enterprise),External,tcp,53783,22,ssh_admin,10.477101875375185,2000,40,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown
+1369.498873269492,User4,external_94,Subnet 1 (User),External,tcp,18715,53,dns,1.0,181700,363,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown
+1471.412547100727,User0,external_65,Subnet 1 (User),External,tcp,29500,80,http,0.5,500,5,31,29,FIN,7,24,1,1,Normal,Benign,34941,Data_Theft
+1558.5115159905815,Enterprise2,Enterprise0,Subnet 2 (Enterprise),Subnet 2 (Enterprise),udp,59366,53,dns,1.004634,50,1,31,29,FIN,3,4,1,2,Normal,Benign,12773,Data_Theft
+1644.6554014662463,Enterprise0,external_82,Subnet 2 (Enterprise),External,tcp,54425,53,dns,0.016565,50,1,31,29,FIN,7,14,1,1,Normal,Benign,39415,Data_Theft
+1647.5443653422612,User3,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,56774,53,dns,0.01,50,1,254,0,INT,0,0,14,34,Normal,Benign,42282,Data_Theft
+1765.770457765425,User2,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),udp,47258,53,dns,0.714639,50,1,254,252,FIN,12,4,2,5,Normal,Benign,42413,Data_Theft

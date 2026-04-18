@@ -1,7 +1,7 @@
-# IDS Pipeline Implementation Review - Steps 0-5
+# IDS Pipeline Implementation Review - Steps 0-6
 
 **Date**: April 18, 2026  
-**Status**: Pre-Step through Step 5 ✅ COMPLETE
+**Status**: Pre-Step through Step 6 ✅ COMPLETE
 
 ---
 
@@ -16,8 +16,9 @@
 | **Step 3** | ✅ Complete | High | Malicious events with phase causality |
 | **Step 4** | ✅ Complete | High | Benign events with service diversity |
 | **Step 5** | ✅ Complete | High | False alarms (3 types, UNSW-grounded) |
+| **Step 6** | ✅ Complete | High | Final assembly with temporal ordering & CSV output |
 | **Helper Functions** | ✅ Complete | High | All utilities in place, Step 5 functions added |
-| **Main Orchestrator** | ✅ Complete | High | Flow through Step 5 correct |
+| **Main Orchestrator** | ✅ Complete | High | Flow through Step 6 correct |
 
 ---
 
@@ -445,8 +446,96 @@ label: False Alarm
 
 ---
 
-### Step 6: Final Assembly (NOT YET IMPLEMENTED)
-**Expected to implement**:
+### ✅ Step 6: Final Assembly with Temporal Ordering
+
+**Implementation**: `step_6.py` → `assemble_30_events_step_6()`  
+**Output**: 5 CSV files in `IDS_tables/` folder: `{scenario}_30_events.csv`
+
+**Key Achievements**:
+- ✅ Assembled all events (malicious + benign + false alarms) per scenario
+- ✅ Assigned deterministic timestamps using phase-based temporal architecture
+- ✅ Validated exactly 30 events (or 29-31 for flexibility with 10-11 malicious)
+- ✅ Preserved all 23 columns (21 schema + 2 tracking)
+- ✅ Sorted events chronologically by timestamp
+- ✅ Generated output CSV files with correct column ordering
+
+**Temporal Architecture**:
+Each scenario uses a 1800-second observation window divided into phases:
+
+| Phase | Type | Duration | Slots | Events |
+|-------|------|----------|-------|--------|
+| 0 (Benign Baseline) | Benign | 0-300s | 6 | Benign |
+| 1-3 (Attack Phases) | Malicious | 300-1200s | 10-11 | Malicious |
+| 4 (Recovery) | Benign + FA | 1200-1800s | 9 Benign + 5 FA | Mixed |
+
+**Phase Configuration per Scenario**:
+- **WannaCry**: 4+4+2=10 malicious (attack slots), 6+9=15 benign, 5 false alarms = 30 total
+- **Data_Theft**: 4+4+2=10 malicious, 15 benign, 5 false alarms = 30 total  
+- **ShellShock**: 4+4+3=11 malicious, 15 benign, 5 false alarms = 31 total
+- **Netcat_Backdoor**: 4+4+2=10 malicious, 15 benign, 5 false alarms = 30 total
+- **passwd_gzip_scp**: 4+4+2=10 malicious, 15 benign, 5 false alarms = 30 total
+
+**Timestamp Assignment Logic**:
+1. Malicious events: Sequential within attack phases (300-1200s)
+2. Benign events: Random scatter within benign phases (0-300s, 1200-1800s)
+3. False alarms: Random scatter across isolated zones (600-700s, 1200-1300s, 1400-1500s)
+4. All: Sorted chronologically for final output
+
+**CSV Output Structure**:
+- **Location**: `IDS_tables/{scenario}_30_events.csv`
+- **Columns**: 23 (exact ordering preserved)
+  1. timestamp (float, seconds)
+  2-23: All UNSW schema columns + tracking (_unsw_row_id, scenario_name)
+- **Validation**: Timestamps strictly increasing, all in range [0, 1800]
+
+**Validation Report** (April 18, 2026):
+
+| Scenario | Total | Malicious | Benign | False Alarm | Validation |
+|----------|-------|-----------|--------|-------------|-----------|
+| WannaCry | 30 | 10 | 15 | 5 | ✅ Pass |
+| Data_Theft | 30 | 10 | 15 | 5 | ✅ Pass |
+| ShellShock | 31 | 11 | 15 | 5 | ✅ Pass |
+| Netcat_Backdoor | 30 | 10 | 15 | 5 | ✅ Pass |
+| passwd_gzip_scp | 30 | 10 | 15 | 5 | ✅ Pass |
+
+**Quality Checks**:
+- ✅ All 23 columns present
+- ✅ Timestamps strictly ordered (increasing)
+- ✅ Event distributions within acceptable ranges
+- ✅ All events have valid labels (Malicious, Benign, False Alarm)
+- ✅ All rows have matching column counts
+- ✅ No null values in critical columns
+
+**Key Implementation Functions**:
+- `assign_timestamps_to_events()`: Distributes events across temporal phases
+- `validate_30_event_table()`: Validates structure, counts, and ordering
+- `write_scenario_csv()`: Outputs CSV with exact column order
+- `assemble_30_events_step_6()`: Main orchestrator
+
+**No Gaps** ✅
+
+---
+
+### 🔧 Bug Fixes Applied
+
+**Issue 1: Missing Columns in Steps 3-5** (FIXED ✅)
+- **Problem**: Events from Steps 3-5 lacked 9 required columns (sttl, dttl, state, sloss, dloss, ct_src_dport_ltm, ct_dst_src_ltm, _unsw_row_id, scenario_name)
+- **Solution**: Updated all event generation functions to extract and include all 23 columns from transformed CSV
+- **Files Modified**: step_3.py, step_4.py, step_5.py
+
+**Issue 2: Phase Architecture Event Count Mismatch** (FIXED ✅)
+- **Problem**: Phase architecture allocated only 8 slots for malicious events, but templates generated 10-11
+- **Solution**: Updated TEMPORAL_ARCHITECTURE to allocate 10-11 slots (4+4+2 or 4+4+3) per scenario
+- **Files Modified**: step_6.py
+
+**Issue 3: Unicode Encoding on Windows** (FIXED ✅)
+- **Problem**: Print statements with emoji checkmarks (✓✅❌⚠) caused UnicodeEncodeError on Windows terminal
+- **Solution**: Replaced all emoji with ASCII text ([OK], [FAIL], [WARN])
+- **Files Modified**: main.py, step_1.py, step_2.py, step_3.py, step_4.py, step_5.py, step_6.py, fill_feature_constraints.py
+
+---
+
+## Step 6: Final Assembly (COMPLETE)
 - Combine all 30 events per scenario (10-11 malicious + 15 benign + 5 false alarm)
 - Sort chronologically by timestamp
 - Remove tracking columns (_source, _step* fields)
@@ -472,7 +561,7 @@ label: False Alarm
 | **Final Events per Scenario** | 30 (10-11 + 15 + 5) |
 | **Benign Service Types** | 6 (HTTP, DNS, SSH, FTP, SMTP, RDP) |
 | **Files Implemented** | 9 (main, pre_step, step_1-5, helper_functions, + 2 templates) |
-| **Implementation Status** | 83% (5 of 6 steps complete) ✅ |
+| **Implementation Status** | 100% (6 of 6 steps complete) ✅ |
 
 ---
 
@@ -499,7 +588,7 @@ label: False Alarm
 - [x] Routing constraints enforced for benign traffic
 - [x] False alarm taxonomy field names standardized (3-type with consistent _source values)
 - [x] Step 5 implemented (false alarms with 3-type taxonomy, UNSW-grounded)
-- [ ] Step 6 implemented (final assembly and CSV output)
+- [x] Step 6 implemented (final assembly and temporal ordering CSV output)
 
 ---
 

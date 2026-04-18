@@ -142,7 +142,7 @@ def generate_false_alarms_step_5(
                 )
                 
                 false_alarm_events_per_scenario[scenario_name] = events
-                print(f"    ✓ Generated {len(events)} false alarm events")
+                print(f"    [OK] Generated {len(events)} false alarm events")
                 
             except Exception as e:
                 errors.append(f"Error generating {scenario_name}: {str(e)}")
@@ -316,28 +316,24 @@ def _generate_type1_unusual_port(scenario_name, base_row, timestamp, benign_stat
         'dst_host': dst_host,
         'src_subnet': src_subnet,
         'dst_subnet': dst_subnet,
-        'src_ip': src_ip,
-        'dst_ip': dst_ip,
         'proto': 'tcp',
         'sport': random.randint(1024, 65535),
-        'dport': dport,  # ANOMALOUS: unusual port
+        'dport': dport,
         'service': benign_service,
         'duration': duration,
         'bytes': bytes_total,
         'packets': packets_total,
-        'sbytes': bytes_total // 2,
-        'dbytes': bytes_total - (bytes_total // 2),
-        'spkts': max(1, packets_total // 2),
-        'dpkts': max(1, packets_total - (packets_total // 2)),
-        'attack_cat': 'Normal',  # IDS sees this as normal
-        'label': 'False Alarm',  # But we label it for evaluation
-        'state': 'CON',
         'sttl': 64,
         'dttl': 64,
+        'state': 'CON',
         'sloss': 0,
         'dloss': 0,
         'ct_src_dport_ltm': 1,
         'ct_dst_src_ltm': 1,
+        'attack_cat': 'Normal',
+        'label': 'False Alarm',
+        '_unsw_row_id': -1,
+        'scenario_name': 'unknown',
         '_source': 'synthetic_false_alarm_type1',
     }
     
@@ -393,28 +389,24 @@ def _generate_type2_high_volume(scenario_name, base_row, timestamp, benign_stats
         'dst_host': dst_host,
         'src_subnet': src_subnet,
         'dst_subnet': dst_subnet,
-        'src_ip': src_ip,
-        'dst_ip': dst_ip,
         'proto': 'tcp',
         'sport': random.randint(1024, 65535),
         'dport': dport,
         'service': benign_service,
         'duration': duration,
-        'bytes': bytes_total,  # ANOMALOUS: very high bytes
+        'bytes': bytes_total,
         'packets': packets_total,
-        'sbytes': bytes_total // 2,
-        'dbytes': bytes_total - (bytes_total // 2),
-        'spkts': max(1, packets_total // 2),
-        'dpkts': max(1, packets_total - (packets_total // 2)),
-        'attack_cat': 'Normal',
-        'label': 'False Alarm',
-        'state': 'CON',
         'sttl': 64,
         'dttl': 64,
+        'state': 'CON',
         'sloss': 0,
         'dloss': 0,
         'ct_src_dport_ltm': 1,
         'ct_dst_src_ltm': 1,
+        'attack_cat': 'Normal',
+        'label': 'False Alarm',
+        '_unsw_row_id': -1,
+        'scenario_name': 'unknown',
         '_source': 'synthetic_false_alarm_type2',
     }
     
@@ -470,28 +462,24 @@ def _generate_type3_rare_duration(scenario_name, base_row, timestamp, benign_sta
         'dst_host': dst_host,
         'src_subnet': src_subnet,
         'dst_subnet': dst_subnet,
-        'src_ip': src_ip,
-        'dst_ip': dst_ip,
         'proto': 'tcp',
         'sport': random.randint(1024, 65535),
         'dport': dport,
         'service': benign_service,
-        'duration': duration,  # ANOMALOUS: very long duration
+        'duration': duration,
         'bytes': bytes_total,
         'packets': packets_total,
-        'sbytes': bytes_total // 2,
-        'dbytes': bytes_total - (bytes_total // 2),
-        'spkts': max(1, packets_total // 2),
-        'dpkts': max(1, packets_total - (packets_total // 2)),
-        'attack_cat': 'Normal',
-        'label': 'False Alarm',
-        'state': 'CON',
         'sttl': 64,
         'dttl': 64,
+        'state': 'CON',
         'sloss': 0,
         'dloss': 0,
         'ct_src_dport_ltm': 1,
         'ct_dst_src_ltm': 1,
+        'attack_cat': 'Normal',
+        'label': 'False Alarm',
+        '_unsw_row_id': -1,
+        'scenario_name': 'unknown',
         '_source': 'synthetic_false_alarm_type3',
     }
     
