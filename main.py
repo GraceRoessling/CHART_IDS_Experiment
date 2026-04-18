@@ -3,8 +3,8 @@ IDS Pipeline (Main Orchestrator - Comment Only)
 """
 
 import pre_step
+import step_1
 from pathlib import Path
-
 
 def main():
 
@@ -43,10 +43,24 @@ def main():
 
 
     # ============================================================
-    # STEP 1: SCENARIO TEMPLATES
-    # Expand scenario templates with placeholders (TIER, temporal structure, FA dist.)
-        # Align templates with global constraints
-        # Output: updated zero_day_templates.json
+    # STEP 1: STRUCTURE & VALIDATE ZERO-DAY TEMPLATES
+    # Ensure all scenario templates have required fields
+    # Validate structure against global constraints
+    # Output: validated templates ready for Step 2
+    # ============================================================
+    
+    templates_path = Path("templates/zero_day_templates.json")
+    
+    step1_result = step_1.validate_templates_step(
+        str(templates_path),
+        str(global_constraints_path)
+    )
+    
+    if not step1_result['success']:
+        raise ValueError(
+            f"Step 1 validation failed: {len(step1_result['errors'])} error(s)\n"
+            + "\n".join(step1_result['errors'])
+        )
 
 
     # ============================================================

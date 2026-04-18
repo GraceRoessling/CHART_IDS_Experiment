@@ -1,6 +1,5 @@
-
-
-{ "scenarios": [
+{
+  "scenarios": [
     {
       "scenario_name": "WannaCry",
       "attack_description": "A user in the enterprise downloads and executes a malicious file disguised as legitimate software. The malware establishes a foothold, scans the internal network for vulnerable hosts using SMB, exploits EternalBlue, and propagates laterally. Infected machines execute a payload that encrypts files and generates high-volume file operations across the network.",
@@ -19,9 +18,16 @@
         "data_exfiltration": "None (focus on encryption and propagation)"
       },
       "unsw_filtering": {
-        "attack_cat": ["Exploits", "Worms"],
-        "proto": ["tcp"],
-        "dport": [445],
+        "attack_cat": [
+          "Exploits",
+          "Worms"
+        ],
+        "proto": [
+          "tcp"
+        ],
+        "dport": [
+          445
+        ],
         "behavioral_cues": [
           "high-frequency internal connections",
           "rapid lateral spread across hosts",
@@ -70,9 +76,17 @@
         "data_exfiltration": "Outbound FTP (port 21) or SSH/SCP (port 22) transfer to external server"
       },
       "unsw_filtering": {
-        "attack_cat": ["Backdoor", "Exploits"],
-        "proto": ["tcp"],
-        "dport": [21, 22],
+        "attack_cat": [
+          "Backdoor",
+          "Exploits"
+        ],
+        "proto": [
+          "tcp"
+        ],
+        "dport": [
+          21,
+          22
+        ],
         "behavioral_cues": [
           "large outbound data transfers",
           "sustained connections to external IPs",
@@ -121,9 +135,16 @@
         "data_exfiltration": "Optional; may include outbound connections or file access"
       },
       "unsw_filtering": {
-        "attack_cat": ["Shellcode"],
-        "proto": ["tcp", "http"],
-        "dport": [80],
+        "attack_cat": [
+          "Shellcode"
+        ],
+        "proto": [
+          "tcp",
+          "http"
+        ],
+        "dport": [
+          80
+        ],
         "behavioral_cues": [
           "repeated HTTP requests with abnormal payloads",
           "unexpected bash process execution",
@@ -172,9 +193,15 @@
         "data_exfiltration": "Possible secondary activity via established backdoor"
       },
       "unsw_filtering": {
-        "attack_cat": ["Backdoor"],
-        "proto": ["tcp"],
-        "dport": ["high_ports"],
+        "attack_cat": [
+          "Backdoor"
+        ],
+        "proto": [
+          "tcp"
+        ],
+        "dport": [
+          "high_ports"
+        ],
         "behavioral_cues": [
           "listening on unusual high-numbered ports",
           "persistent inbound connections",
@@ -223,9 +250,15 @@
         "data_exfiltration": "Secure copy (SCP) transfer over SSH (port 22)"
       },
       "unsw_filtering": {
-        "attack_cat": ["Backdoor"],
-        "proto": ["tcp"],
-        "dport": [22],
+        "attack_cat": [
+          "Backdoor"
+        ],
+        "proto": [
+          "tcp"
+        ],
+        "dport": [
+          22
+        ],
         "behavioral_cues": [
           "file access followed by compression",
           "scp or ssh-based outbound transfer",

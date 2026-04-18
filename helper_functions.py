@@ -253,4 +253,252 @@ def validate_attack_cat(attack_cat):
 # SCENARIOS DEFINITION (Shared across pipeline)
 # ============================================================
 
-SCENARIOS = ['WannaCry', 'Data_Theft', 'ShellShock', 'Netcat_Backdoor', 'passwd_gzip_scp']
+SCENARIOS = ['WannaCry', 'Data Theft (FTP/SSH)', 'ShellShock', 'Netcat Backdoor', 'passwd-gzip-scp']
+
+
+# ============================================================
+# STEP 1: TEMPLATE VALIDATION UTILITIES
+# ============================================================
+
+def validate_scenario_template(scenario_dict, scenario_index):
+    """
+    Validate that a single scenario template has all required fields with correct structure.
+    
+    Args:
+        scenario_dict (dict): Single scenario from zero_day_templates.json
+        scenario_index (int): Index of scenario (for error reporting)
+        
+    Returns:
+        dict: Validation result with 'valid' (bool) and 'errors' (list of strings)
+        
+    Raises:
+        None (returns errors instead)
+    """
+    errors = []
+    
+    # Required top-level fields
+    required_fields = [
+        'scenario_name',
+        'attack_description',
+        'entry_point',
+        'target_asset',
+        'key_attack_behaviors',
+        'unsw_filtering',
+        'feature_constraints',
+        'temporal_architecture',
+        'false_alarm_distribution',
+        'expected_tier'
+    ]
+    
+    for field in required_fields:
+        if field not in scenario_dict:
+            errors.append(f"  Scenario {scenario_index}: Missing required field '{field}'")
+    
+    # Validate entry_point and target_asset structure
+    if 'entry_point' in scenario_dict:
+        entry = scenario_dict['entry_point']
+        if not isinstance(entry, dict):
+            errors.append(f"  Scenario {scenario_index}: 'entry_point' must be dict, got {type(entry)}")
+        elif 'host' not in entry or 'subnet' not in entry:
+            errors.append(f"  Scenario {scenario_index}: 'entry_point' missing 'host' or 'subnet'")
+    
+    if 'target_asset' in scenario_dict:
+        target = scenario_dict['target_asset']
+        if not isinstance(target, dict):
+            errors.append(f"  Scenario {scenario_index}: 'target_asset' must be dict, got {type(target)}")
+        elif 'host' not in target or 'subnet' not in target:
+            errors.append(f"  Scenario {scenario_index}: 'target_asset' missing 'host' or 'subnet'")
+    
+    # Validate key_attack_behaviors structure
+    if 'key_attack_behaviors' in scenario_dict:
+        behaviors = scenario_dict['key_attack_behaviors']
+        if not isinstance(behaviors, dict):
+            errors.append(f"  Scenario {scenario_index}: 'key_attack_behaviors' must be dict, got {type(behaviors)}")
+        else:
+            required_behaviors = ['initial_access', 'lateral_movement', 'payload_execution', 'data_exfiltration']
+            for behavior in required_behaviors:
+                if behavior not in behaviors:
+                    errors.append(f"  Scenario {scenario_index}: 'key_attack_behaviors' missing '{behavior}'")
+    
+    # Validate unsw_filtering structure
+    if 'unsw_filtering' in scenario_dict:
+        unsw = scenario_dict['unsw_filtering']
+        if not isinstance(unsw, dict):
+            errors.append(f"  Scenario {scenario_index}: 'unsw_filtering' must be dict, got {type(unsw)}")
+        else:
+            required_unsw = ['attack_cat', 'proto', 'dport', 'behavioral_cues']
+            for field in required_unsw:
+                if field not in unsw:
+                    errors.append(f"  Scenario {scenario_index}: 'unsw_filtering' missing '{field}'")
+    
+    # Validate feature_constraints structure (may be empty for now)
+    if 'feature_constraints' in scenario_dict:
+        fc = scenario_dict['feature_constraints']
+        if not isinstance(fc, dict):
+            errors.append(f"  Scenario {scenario_index}: 'feature_constraints' must be dict, got {type(fc)}")
+        else:
+            required_fc = ['duration', 'bytes', 'packets', 'rate', 'dport']
+            for field in required_fc:
+                if field not in fc:
+                    errors.append(f"  Scenario {scenario_index}: 'feature_constraints' missing '{field}'")
+    
+    # Validate temporal_architecture structure
+    if 'temporal_architecture' in scenario_dict:
+        ta = scenario_dict['temporal_architecture']
+        if not isinstance(ta, dict):
+            errors.append(f"  Scenario {scenario_index}: 'temporal_architecture' must be dict, got {type(ta)}")
+        else:
+            required_ta = ['total_duration', 'phases', 'false_alarm_zones']
+            for field in required_ta:
+                if field not in ta:
+                    errors.append(f"  Scenario {scenario_index}: 'temporal_architecture' missing '{field}'")
+            
+            if 'total_duration' in ta and ta['total_duration'] != 1800:
+                errors.append(f"  Scenario {scenario_index}: 'total_duration' should be 1800, got {ta['total_duration']}")
+    
+    # Validate false_alarm_distribution structure
+    if 'false_alarm_distribution' in scenario_dict:
+        fad = scenario_dict['false_alarm_distribution']
+        if not isinstance(fad, dict):
+            errors.append(f"  Scenario {scenario_index}: 'false_alarm_distribution' must be dict, got {type(fad)}")
+        else:
+            required_fad = ['type_1_unusual_port_benign_service', 'type_2_high_volume_low_risk', 'type_3_rare_duration_benign']
+            for field in required_fad:
+                if field not in fad:
+                    errors.append(f"  Scenario {scenario_index}: 'false_alarm_distribution' missing '{field}'")
+    
+    # Validate scenario_name
+    if 'scenario_name' in scenario_dict:
+        name = scenario_dict['scenario_name']
+        if name not in SCENARIOS:
+            errors.append(f"  Scenario {scenario_index}: scenario_name '{name}' not in SCENARIOS list")
+    
+    return {
+        'valid': len(errors) == 0,
+        'errors': errors
+    }
+
+
+def validate_all_templates(templates_dict):
+    """
+    Validate entire zero_day_templates.json structure.
+    
+    Args:
+        templates_dict (dict): Parsed zero_day_templates.json
+        
+    Returns:
+        dict: Validation results with 'valid', 'total_scenarios', 'valid_scenarios', 'errors' (list)
+    """
+    errors = []
+    
+    # Check top-level structure
+    if 'scenarios' not in templates_dict:
+        errors.append("Top-level: Missing 'scenarios' key")
+        return {
+            'valid': False,
+            'total_scenarios': 0,
+            'valid_scenarios': 0,
+            'errors': errors
+        }
+    
+    if not isinstance(templates_dict['scenarios'], list):
+        errors.append(f"'scenarios' must be list, got {type(templates_dict['scenarios'])}")
+        return {
+            'valid': False,
+            'total_scenarios': 0,
+            'valid_scenarios': 0,
+            'errors': errors
+        }
+    
+    scenarios = templates_dict['scenarios']
+    total = len(scenarios)
+    valid_count = 0
+    
+    # Expected number of scenarios
+    expected_scenarios = len(SCENARIOS)
+    if total != expected_scenarios:
+        errors.append(f"Expected {expected_scenarios} scenarios, found {total}")
+    
+    # Validate each scenario
+    for idx, scenario in enumerate(scenarios):
+        result = validate_scenario_template(scenario, idx)
+        if result['valid']:
+            valid_count += 1
+        else:
+            errors.extend(result['errors'])
+    
+    return {
+        'valid': len(errors) == 0,
+        'total_scenarios': total,
+        'valid_scenarios': valid_count,
+        'errors': errors
+    }
+
+
+def load_templates(template_path):
+    """
+    Load zero_day_templates.json from file.
+    
+    Args:
+        template_path (str): Path to zero_day_templates.json
+        
+    Returns:
+        dict: Parsed JSON or raises FileNotFoundError
+        
+    Raises:
+        FileNotFoundError: If template file not found
+        json.JSONDecodeError: If JSON is malformed
+    """
+    import json
+    from pathlib import Path
+    
+    path = Path(template_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Template file not found: {template_path}")
+    
+    with open(path, 'r') as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in {template_path}: {e}")
+
+
+def save_templates(template_dict, template_path):
+    """
+    Save validated templates to zero_day_templates.json.
+    
+    Args:
+        template_dict (dict): Template dictionary to save
+        template_path (str): Path to save JSON to
+        
+    Returns:
+        None
+        
+    Raises:
+        Exception: If write fails
+    """
+    import json
+    from pathlib import Path
+    
+    path = Path(template_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(path, 'w') as f:
+        json.dump(template_dict, f, indent=2)
+
+
+def get_scenario_by_name(templates_dict, scenario_name):
+    """
+    Retrieve a single scenario template by name.
+    
+    Args:
+        templates_dict (dict): Parsed templates dictionary
+        scenario_name (str): Name of scenario to retrieve
+        
+    Returns:
+        dict: Scenario template or None if not found
+    """
+    for scenario in templates_dict.get('scenarios', []):
+        if scenario.get('scenario_name') == scenario_name:
+            return scenario
+    return None
