@@ -842,84 +842,153 @@ def generate_benign_events_step_4(
 
 ---
 
-## **STEP 5: Generate False Alarm Events**
+## **STEP 5: Generate False Alarm Events** ✅ IMPLEMENTED
 
-**Objective:** Create 4-5 locally anomalous but globally common events.
+**Objective:** Create 5 locally anomalous but globally benign events per scenario.
 
-**Note:** Pre-Step now provides **all 21 columns**. For sophisticated false alarms, combine features: Type 1 can use `state='RST'` or `sloss > 0` for subtle anomalies; Type 2 can use actual UNSW `bytes`/`packets` ranges from filtered data.
+**Implementation**: `step_5.py` → `generate_false_alarms_step_5()`  
+**Output**: Updated templates with `_step5_false_alarm_events` per scenario
+
+**Note:** Pre-Step provides **all 21 columns**. False alarms combine UNSW-grounded feature templates with anomaly injection in one feature dimension while keeping others within benign ranges.
 
 **Inputs:**
-- False alarm distribution from `templates/zero_day_templates.json` (simplified to 2 types)
+- Pooled benign UNSW data (280K rows from all 5 scenarios combined)
+- Computed feature statistics (90th percentile thresholds)
 - Network topology
+- Scenario template
 
 **Outputs:**
-- List of 4-5 false alarm event dictionaries
+- List of 5 false alarm event dictionaries per scenario, stored in templates
 
-### Step 5 Action Items
+### Step 5 Implementation Details ✅
 
-1. **Generate by Type (simplified taxonomy: 2 types instead of 3):**
+**Core Strategy: UNSW-Grounded + Scenario-Independent**
 
-   **Type 1: Unusual Port + Benign Service (2 events)**
-   ```python
-   def generate_type1_unusual_benign(count=2):
-       """Event looks suspicious (unusual port) but service is harmless."""
-       events = []
-       for i in range(count):
-           event = {
-               'src_host': random.choice(['Enterprise0', 'Enterprise1', 'Enterprise2']),
-               'dst_host': f'8.8.8.{10+i}',  # External
-               'proto': 'tcp',
-               'dport': random.randint(10000, 65535),  # High/unusual port
-               'service': 'dns',  # But benign service
-               'duration': random.uniform(0.5, 2.0),
-               'bytes': random.randint(100, 500),
-               'packets': random.randint(5, 20),
-               'attack_cat': 'Normal',
-               'label': 'False Alarm'
-           }
-           events.append(event)
-       return events
+**Design Principle:** False alarms are generated using the same UNSW-grounded approach as benign events, but with anomaly injection in one feature dimension. This reflects realistic baselines where the IDS must distinguish between unusual-but-benign traffic and actual attacks.
+
+**3-Type Taxonomy** (5 total events per scenario):
+
+1. **Type 1: Unusual Port + Benign Service (2 events)**
+   - **Anomaly**: High ephemeral port (10,000-65,535) instead of standard service port
+   - **Benign elements**: Service is actually benign (DNS, HTTP, SMTP)
+   - **Why it's a false alarm**: Port looks suspicious but service is harmless
+   - **Feature profile**: Normal duration & bytes, ANOMALOUS port
+   ```
+   Example: Query to external DNS resolver on port 58,540 instead of 53
+   (Looks like port scanning, but it's just DNS traffic on unusual port)
    ```
 
-   **Type 2: High Volume + Low-Risk Service (3 events)**
-   ```python
-   def generate_type2_high_volume_benign(count=3):
-       """Event looks suspicious (huge volume) but context is harmless."""
-       events = []
-       for i in range(count):
-           event = {
-               'src_host': random.choice(['User0', 'User1', 'User2', 'Enterprise1']),
-               'dst_host': random.choice(['1.1.1.1', '8.8.8.8']),  # External
-               'proto': 'tcp',
-               'dport': 53,  # DNS—low-risk port
-               'service': 'dns',
-               'duration': random.uniform(30, 180),  # Long duration
-               'bytes': random.randint(5000000, 50000000),  # 5-50 MB (unusual for DNS)
-               'packets': random.randint(500, 3000),
-               'attack_cat': 'Normal',
-               'label': 'False Alarm'
-           }
-           events.append(event)
-       return events
+2. **Type 2: High Volume + Benign Service (2 events)**
+   - **Anomaly**: Very large bytes transfer (2-5× benign 90th percentile)
+   - **Benign elements**: Service and duration are normal
+   - **Why it's a false alarm**: Large volume looks like exfiltration but context is benign
+   - **Feature profile**: ANOMALOUS bytes, normal duration & service
+   ```
+   Example: 100-250 KB DNS response (Looks like data exfil, but large DNS is possible)
    ```
 
-2. **Distribution Logic:**
-
-   a) Generate Type 1: 2 events
-   b) Generate Type 2: 3 events
-   c) Total: 5 false alarm events
-   d) Shuffle order before passing to Step 6
-
-3. **Basic Sanity Check:**
-
-   ```python
-   def validate_false_alarms(fa_events, scenario_name):
-       """Quick check: all false alarms marked as 'Normal' attack_cat."""
-       normal_count = sum(1 for e in fa_events if e.get('attack_cat') == 'Normal')
-       assert normal_count == len(fa_events), \
-           f"ERROR: {len(fa_events) - normal_count} false alarms missing 'Normal' attack_cat"
-       print(f"  ✅ {scenario_name}: {len(fa_events)} false alarms validated")
+3. **Type 3: Rare Duration + Benign Service (1 event)**
+   - **Anomaly**: Very long session duration (3-10× benign 90th percentile)
+   - **Benign elements**: Service is harmless (SSH admin access)
+   - **Why it's a false alarm**: Long session looks suspicious but SSH sessions last hours
+   - **Feature profile**: ANOMALOUS duration, normal bytes & service
    ```
+   Example: 5-12 second SSH session to external IP (Rare but benign admin activity)
+   ```
+
+**Implementation Process:**
+
+```python
+def generate_false_alarms_step_5(
+    transformed_csv_path,
+    templates_path,
+    global_constraints_path,
+    random_seed=42
+):
+    """
+    Generate 5 false alarm events per scenario.
+    
+    Process:
+    1. Load transformed dataset (876,705 rows total, all scenarios)
+    2. Pool benign data: filter attack_cat='Normal' (280,000 rows)
+    3. Compute feature statistics:
+       - bytes 90th percentile: 53,650 bytes
+       - duration 90th percentile: 1.20 seconds
+    4. For each scenario:
+       a) Sample 5 benign rows as templates
+       b) Generate Type 1 (2 events): Unusual port + benign service
+       c) Generate Type 2 (2 events): High volume + benign service
+       d) Generate Type 3 (1 event): Rare duration + benign service
+       e) Assign deterministic hosts (MD5-based, scenario-aware)
+       f) Generate timestamps spread across [0, 1800]
+       g) Validate all marked as attack_cat='Normal', label='False Alarm'
+    5. Update templates with _step5_false_alarm_events
+    6. Save updated templates.json
+    """
+```
+
+**Feature Anomalies (Grounded in UNSW Stats):**
+
+| Type | Anomalous Feature | Threshold Calculation | Range | Why It's Suspicious |
+|------|-------------------|----------------------|-------|--------------------|
+| Type 1 | dport | High ephemeral range | 10,000-65,535 | Unusual port for service |
+| Type 2 | bytes | 2-5× benign 90th | 107,300-268,250 B | Unusually large for service |
+| Type 3 | duration | 3-10× benign 90th | 3.6-12.0 seconds | Unusually long/short for service |
+
+**Benign Feature Characteristics** (from pooled UNSW data):
+- Bytes 90th percentile: 53,650 bytes
+- Duration 90th percentile: 1.20 seconds
+
+**Scenario-Independent Generation:**
+
+- **Pooled benign data**: All 5 scenarios combined (280K rows)
+- **Same generation strategy**: Each scenario uses identical false alarm rules
+- **Deterministic host mapping**: MD5(`scenario_name:hostname`) ensures consistency
+- **Rationale**: IDS has no prior knowledge of specific zero-day; baseline traffic is generic
+
+**Verification Results** (April 18, 2026):
+
+| Scenario | Type 1 | Type 2 | Type 3 | Total | Status |
+|----------|--------|--------|--------|-------|--------|
+| WannaCry | 2 | 2 | 1 | 5 | ✅ Pass |
+| Data_Theft | 2 | 2 | 1 | 5 | ✅ Pass |
+| ShellShock | 2 | 2 | 1 | 5 | ✅ Pass |
+| Netcat_Backdoor | 2 | 2 | 1 | 5 | ✅ Pass |
+| passwd_gzip_scp | 2 | 2 | 1 | 5 | ✅ Pass |
+
+✅ **All scenarios**: 5 false alarm events generated  
+✅ **Labels correct**: `attack_cat='Normal'`, `label='False Alarm'`  
+✅ **Features grounded**: Use UNSW benign stats + anomaly injection  
+✅ **Scenario-independent**: Pooled benign data used for all 5 scenarios  
+✅ **Stored in templates**: `_step5_false_alarm_events` per scenario  
+
+**Events Stored in Templates** with all 21 schema fields:
+- timestamp, src_host, dst_host, src_subnet, dst_subnet
+- src_ip, dst_ip
+- proto, sport, dport, service
+- duration, bytes, packets, sbytes, dbytes, spkts, dpkts
+- attack_cat ('Normal'), label ('False Alarm')
+- state, sttl, dttl, sloss, dloss
+- ct_src_dport_ltm, ct_dst_src_ltm
+- _source ('synthetic_false_alarm_type1/2/3')
+
+**Helper Functions Added** (to `helper_functions.py`):
+
+```python
+def get_random_internal_host(allowed_prefixes):
+    """Return random internal hostname from allowed prefixes."""
+    # Shared utility for Steps 3-5
+
+def get_deterministic_ip_for_host(scenario_name, hostname):
+    """Return deterministic IP for hostname within scenario."""
+    # Shared utility for Steps 3-5
+
+def violates_routing_constraint(src_subnet, dst_subnet):
+    """Check if communication violates topology constraints."""
+    # Shared validation for Steps 3-5
+```
+
+**No Gaps** ✅
 
 ---
 
@@ -1103,7 +1172,7 @@ def generate_benign_events_step_4(
 4. ✅ **Step 2**: Extract UNSW stats & classify TIER (1 or 2 only)
 5. ✅ **Step 3**: Generate malicious events with phase-based causality (10-11 events, TIER 1 sampling)
 6. ✅ **Step 4**: Generate benign events (15 events, pooled scenario-independent sampling)
-7. 📋 **Step 5**: Generate false alarm events (5 events, 2 types) — TODO
+7. ✅ **Step 5**: Generate false alarm events (5 events, 3 types, UNSW-grounded)
 8. 📋 **Step 6**: Assemble & timestamp → Final 30-event CSV tables — TODO
 
 ---
@@ -1126,10 +1195,12 @@ def generate_benign_events_step_4(
 - **Implementation**: If ≥10 UNSW rows: use actual events (TIER 1). If 5-9: mix actual + parameterized (TIER 2).
 - **Minimum threshold**: 5 rows (anything less fails with error; adjust filters manually).
 
-### **Decision 2: Simplified False Alarms (2 Types, 5 Total Events)**
-- **Type 1: Unusual_Benign** (2 events) — High port + benign service (looks suspicious, isn't)
-- **Type 2: High_Volume_Benign** (3 events) — Large bytes + low-risk service (looks like exfil, isn't)
-- **Removed**: "Rare_Duration_Benign" type (3rd type; was overspecified)
+### **Decision 2: 3-Type False Alarm Taxonomy (5 Total Events)**
+- **Type 1: Unusual Port + Benign Service** (2 events) — High ephemeral port + benign service (looks suspicious, isn't)
+- **Type 2: High Volume + Benign Service** (2 events) — Large bytes on benign service (looks like exfil, isn't)
+- **Type 3: Rare Duration + Benign Service** (1 event) — Long session on benign service (looks anomalous, isn't)
+- **Grounding**: UNSW-based feature templates with 90th percentile thresholds for anomalies
+- **Scenario independence**: Pooled benign data (280K rows) ensures same baseline for all 5 scenarios
 
 ### **Decision 3: No Feature Validation/Remediation**
 - **Rationale**: Feature stats are informational only. If filtered data looks wrong, adjust UNSW filter rules in JSON manually.
@@ -1148,28 +1219,31 @@ def generate_benign_events_step_4(
 
 ## **What This Means: Comparison**
 
-| Aspect | Original | Simplified |
+| Aspect | Original Plan | Actual Implementation |
 |--------|----------|-----------|
 | TIER approach | 1/2/3 (with KDE) | 1/2 only (no KDE) |
-| False alarm types | 3 types | 2 types |
+| False alarm types | 3 types | 3 types ✅ (Unusual Port + High Volume + Rare Duration) |
+| False alarm grounding | Synthetic | UNSW-grounded (pooled benign data + 90th percentile thresholds) ✅ |
 | Feature validation | Exhaustive (violation checks, remediation) | Informational only |
 | Temporal validation | 4 thresholds (attack window, isolation, adjacency) | Basic (timestamps increasing) |
 | Visualization | Timeline PNG | CSV only |
 | Libraries needed | pandas + scipy + matplotlib | pandas only |
-| Scripts | ~6 (total ~900 lines) | ~6 (total ~600 lines) |
+| Scripts | ~6 (total ~900 lines) | ~6 (total ~800 lines) |
 | Time expected | 1-2 weeks | 1-2 days |
 
 ---
 
 ## **Quick Start: Simplified Pipeline Summary**
 
-This document now reflects a **pragmatic, simplified approach** to generating synthetic IDS event tables.
+This document reflects a **pragmatic, simplified approach** to generating synthetic IDS event tables, fully implemented through Step 5.
 
 ### **What Changed:**
 
 ✅ **TIER 1 & 2 only** — No KDE synthesis. Use real UNSW data or simple ±20% parameterized variations.
 
-✅ **2 false alarm types** — Cut from 3 to 2 types (Unusual_Benign + High_Volume_Benign = 5 total events).
+✅ **3-Type False Alarms (UNSW-Grounded)** — Not 2 types. Implemented 3 types (Unusual Port + High Volume + Rare Duration = 5 total events), grounded in UNSW benign data with 90th percentile anomaly thresholds.
+
+✅ **Scenario-Independent Benign & False Alarms** — Pooled benign data (280K rows from all scenarios) ensures generic baseline that IDS can't distinguish between scenarios.
 
 ✅ **Basic stats only** — Extract feature ranges but skip fancy validation/remediation. If data looks wrong, adjust filters manually.
 
@@ -1186,12 +1260,12 @@ This document now reflects a **pragmatic, simplified approach** to generating sy
 
 ### **You Will Create:**
 
-6 Python scripts (~600 lines total):
+6 Python scripts (~800 lines total):
 1. **Pre-Step**: Transform UNSW to schema (~150 lines)
 2. **Step 2**: Extract stats & classify TIER (~140 lines)
 3. **Step 3**: Generate malicious events (~180 lines)
 4. **Step 4**: Generate benign events (~120 lines)
-5. **Step 5**: Generate false alarms (~100 lines)
+5. **Step 5**: Generate false alarms (3 types, UNSW-grounded) (~240 lines) ✅
 6. **Step 6**: Assemble & output CSV (~130 lines)
 
 Plus manual setup:
@@ -1200,22 +1274,29 @@ Plus manual setup:
 
 ### **Expected Output:**
 
-5 CSV files (one per scenario):
+**Templates File** (`templates/zero_day_templates.json`):
+- Updated with `_step3_malicious_events` (10-11 per scenario)
+- Updated with `_step4_benign_events` (15 per scenario)  
+- Updated with `_step5_false_alarm_events` (5 per scenario) ✅
+- Ready for Step 6 assembly
+
+**Final CSV Files** (Step 6, coming next):
 - `WannaCry_30_events.csv`
 - `Data_Theft_30_events.csv`
 - `ShellShock_30_events.csv`
 - `Netcat_Backdoor_30_events.csv`
 - `passwd_gzip_scp_30_events.csv`
 
-Each: exactly 30 rows, 23 columns (21 schema + 2 tracking), timestamps 0-1800s increasing, label distribution: ~11 malicious, 15 benign, 5 false alarms.
+Each: exactly 30 rows, 23 columns (21 schema + 2 tracking), timestamps 0-1800s increasing, label distribution: 10-11 malicious, 15 benign, 5 false alarms.
 
 ### **Next Steps:**
 
-1. **Run Pre-Step** to transform UNSW dataset
-2. **Manually edit JSON files** (Steps 0-1)
-3. **Run Scripts 2-6** sequentially (or in a loop for each scenario)
-4. **Validate output CSVs** in Excel/Python (check row count, timestamps, label distribution)
-5. Done! Ready for downstream analysis.
+1. ✅ **Run Pre-Step** to transform UNSW dataset
+2. ✅ **Manually edit JSON files** (Steps 0-1)
+3. ✅ **Run Scripts 2-5** sequentially (malicious, benign, false alarms)
+4. 📋 **Run Step 6** to assemble all events and output final CSVs
+5. **Validate output CSVs** in Excel/Python (check row count, timestamps, label distribution)
+6. Done! Ready for downstream analysis.
 
 For questions: refer to the step-by-step descriptions above. Each step is self-contained and includes example code.
 

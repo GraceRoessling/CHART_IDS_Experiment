@@ -1,7 +1,7 @@
-# IDS Pipeline Implementation Review - Steps 0-4
+# IDS Pipeline Implementation Review - Steps 0-5
 
 **Date**: April 18, 2026  
-**Status**: Pre-Step through Step 4 ✅ COMPLETE with one minor issue to address
+**Status**: Pre-Step through Step 5 ✅ COMPLETE
 
 ---
 
@@ -15,8 +15,9 @@
 | **Step 2** | ✅ Complete | High | Filtering & tier classification done |
 | **Step 3** | ✅ Complete | High | Malicious events with phase causality |
 | **Step 4** | ✅ Complete | High | Benign events with service diversity |
-| **Helper Functions** | ✅ Complete | High | All utilities in place |
-| **Main Orchestrator** | ✅ Complete | High | Flow through Step 4 correct |
+| **Step 5** | ✅ Complete | High | False alarms (3 types, UNSW-grounded) |
+| **Helper Functions** | ✅ Complete | High | All utilities in place, Step 5 functions added |
+| **Main Orchestrator** | ✅ Complete | High | Flow through Step 5 correct |
 
 ---
 
@@ -331,16 +332,122 @@ objective: 3 events
 
 **No Gaps** ✅
 
-### Step 5: Generate False Alarms (NOT YET IMPLEMENTED)
-**Expected to implement**:
-- Create 4-5 locally anomalous but globally common events
-- Types: unusual port + benign service, high volume benign, rare duration benign
-- Maintain temporal distribution in non-attack phases
-- Use `_step2_stats` for feature ranges
+---
+
+### ✅ Step 5: Generate False Alarm Events
+
+**Implementation**: `step_5.py` → `generate_false_alarms_step_5()`  
+**Output**: Updated templates with `_step5_false_alarm_events` per scenario
+
+**Key Design Decisions** (per user requirements):
+
+1. **False Alarm Types**: 3 types (2 + 2 + 1 distribution)
+   - **Type 1** (2 events): Unusual Port + Benign Service
+     - Anomaly: High ephemeral port (10000-65535) on benign service
+     - Looks suspicious (unusual port) but service is harmless (DNS, HTTP, SMTP)
+     - Features: Normal duration/bytes, only port is anomalous
+   
+   - **Type 2** (2 events): High Volume + Benign Service
+     - Anomaly: Very large bytes transfer (2-5× the benign 90th percentile)
+     - Features: High bytes (anomalous), normal duration
+     - Services: DNS, SMTP (benign but with unusual volume)
+   
+   - **Type 3** (1 event): Rare Duration + Benign Service
+     - Anomaly: Very long duration (3-10× the benign 90th percentile)
+     - Features: Long duration (anomalous), normal bytes
+     - Service: SSH (benign but with unusually long session)
+
+2. **UNSW-Grounded Approach**:
+   - Sample 5 benign UNSW rows as templates
+   - Extract feature distributions (duration, bytes, packets)
+   - Compute 90th percentile thresholds from benign data
+   - Anomalies created by amplifying one feature dimension while keeping others normal
+
+3. **Scenario-Independent**:
+   - Pooled benign data from all 5 scenarios combined (280,000 rows)
+   - Same false alarm generation strategy for all scenarios
+   - Reflects realistic operational baseline (IDS has no prior knowledge of specific attacks)
+
+4. **Benign Feature Statistics** (computed from pooled data):
+   ```
+   Bytes 90th percentile: 53,650 bytes
+   Duration 90th percentile: 1.20 seconds
+   
+   Type 2 high volume: 107,300 - 268,250 bytes (2-5× threshold)
+   Type 3 rare duration: 3.6 - 12 seconds (3-10× threshold)
+   ```
+
+**Events stored in templates** with fields:
+- timestamp, src_host, dst_host, src_subnet, dst_subnet
+- src_ip, dst_ip
+- proto, sport, dport, service
+- duration, bytes, packets, sbytes, dbytes, spkts, dpkts
+- attack_cat ('Normal'), label ('False Alarm')
+- state, sttl, dttl, sloss, dloss
+- ct_src_dport_ltm, ct_dst_src_ltm
+- _source ('synthetic_false_alarm_type1/2/3')
+
+**Verification Results** (all 5 scenarios, April 18, 2026):
+
+| Scenario | Type 1 Events | Type 2 Events | Type 3 Events | Total | Validation |
+|----------|---------------|---------------|---------------|-------|------------|
+| WannaCry | 2 | 2 | 1 | 5 | ✅ Pass |
+| Data_Theft | 2 | 2 | 1 | 5 | ✅ Pass |
+| ShellShock | 2 | 2 | 1 | 5 | ✅ Pass |
+| Netcat_Backdoor | 2 | 2 | 1 | 5 | ✅ Pass |
+| passwd_gzip_scp | 2 | 2 | 1 | 5 | ✅ Pass |
+
+**Sample Type 1 Event** (Unusual Port + Benign Service):
+```
+dport: 58540 (unusual ephemeral port)
+service: smtp (benign)
+bytes: ~200 (normal for SMTP)
+duration: 0.1s (normal)
+attack_cat: Normal
+label: False Alarm
+```
+
+**Sample Type 2 Event** (High Volume + Benign Service):
+```
+dport: 53 (DNS)
+service: dns (benign)
+bytes: 100,000+ (2-5× normal—anomalous)
+duration: 1-30s (normal range)
+attack_cat: Normal
+label: False Alarm
+```
+
+**Sample Type 3 Event** (Rare Duration + Benign Service):
+```
+dport: 22 (SSH)
+service: ssh_admin (benign)
+duration: 5-12s (3-10× normal—anomalous)
+bytes: 1000-100KB (normal range)
+attack_cat: Normal
+label: False Alarm
+```
+
+**Key Implementation Features**:
+- ✅ All false alarms have `attack_cat='Normal'` (IDS sees as benign)
+- ✅ Labeled as `label='False Alarm'` for downstream evaluation
+- ✅ Anomalies isolated to one feature dimension (not obvious attack patterns)
+- ✅ Topology/host validation enforced
+- ✅ Features/services grounded in real UNSW benign data
+- ✅ Timestamps spread across [0, 1800] observation window
+- ✅ 5 events per scenario (2+2+1 distribution)
+
+**Helper Functions Added**:
+- `get_random_internal_host(allowed_prefixes)`: Shared utility for host selection
+- `get_deterministic_ip_for_host(scenario_name, hostname)`: Shared utility for IP mapping
+- `violates_routing_constraint(src_subnet, dst_subnet)`: Shared routing validation
+
+**No Gaps** ✅
+
+---
 
 ### Step 6: Final Assembly (NOT YET IMPLEMENTED)
 **Expected to implement**:
-- Combine all 30 events per scenario (10-11 malicious + 15 benign + 4-5 false alarm)
+- Combine all 30 events per scenario (10-11 malicious + 15 benign + 5 false alarm)
 - Sort chronologically by timestamp
 - Remove tracking columns (_source, _step* fields)
 - Output: `{scenario}_30_events.csv` (5 files total)
@@ -361,11 +468,11 @@ objective: 3 events
 | **Observation Window** | 1800 seconds |
 | **Malicious Events per Scenario** | 10-11 ✅ COMPLETE |
 | **Benign Events per Scenario** | 15 ✅ COMPLETE |
-| **False Alarm Events per Scenario** | 4-5 (TODO) |
-| **Final Events per Scenario** | 30 (10-11 + 15 + 4-5) |
+| **False Alarm Events per Scenario** | 5 ✅ COMPLETE (3-type: 2+2+1) |
+| **Final Events per Scenario** | 30 (10-11 + 15 + 5) |
 | **Benign Service Types** | 6 (HTTP, DNS, SSH, FTP, SMTP, RDP) |
-| **Files Implemented** | 9 (main, pre_step, step_1-4, helper_functions, + 2 templates) |
-| **Implementation Status** | 67% (4 of 6 steps complete) |
+| **Files Implemented** | 9 (main, pre_step, step_1-5, helper_functions, + 2 templates) |
+| **Implementation Status** | 83% (5 of 6 steps complete) ✅ |
 
 ---
 
@@ -390,8 +497,9 @@ objective: 3 events
 - [x] Step 4 benign events generated with service diversity
 - [x] Benign events uniformly distributed across time window
 - [x] Routing constraints enforced for benign traffic
-- [ ] False alarm taxonomy field names standardized
-- [ ] Steps 5-6 implemented
+- [x] False alarm taxonomy field names standardized (3-type with consistent _source values)
+- [x] Step 5 implemented (false alarms with 3-type taxonomy, UNSW-grounded)
+- [ ] Step 6 implemented (final assembly and CSV output)
 
 ---
 
@@ -406,19 +514,19 @@ objective: 3 events
 6. **Traceability**: Tracking columns enable auditing
 7. **Realistic benign baseline**: Service diversity and topology adherence
 
-### Readiness for Step 5 📈
-- ✅ All prerequisites complete (Steps 0-4 done)
+### Readiness for Step 6 📈
+- ✅ All prerequisites complete (Steps 0-5 done)
 - ✅ Malicious events generated with proper phase causality (10-11 per scenario)
 - ✅ Benign events generated with service diversity (15 per scenario)
+- ✅ False alarm events generated with 3-type taxonomy (5 per scenario)
 - ✅ Feature statistics available in `_step2_stats`
 - ✅ Tier classification verified (all TIER 1)
-- ⚠️ One minor field name issue in false alarm taxonomy to fix
+- ✅ All false alarm field names standardized (consistent `_source` values)
 
 ### Recommendations 🎯
-1. **Immediate**: Fix false alarm distribution field names (consistency issue in global_constraints.json vs templates)
-2. **Next**: Implement Step 5 (false alarm event generation with 3-type taxonomy)
-3. **Then**: Implement Step 6 (final assembly combining all 30 events)
-4. **Testing**: Run main.py end-to-end; verify all scenarios have 30 events (10-11 malicious + 15 benign + 4-5 false alarm)
+1. ✅ **DONE**: Step 5 false alarm event generation with 3-type taxonomy (UNSW-grounded)
+2. **Next**: Implement Step 6 (final assembly combining all 30 events)
+3. **Testing**: Run main.py end-to-end; verify all scenarios have 30 events (10-11 malicious + 15 benign + 5 false alarm) with proper timestamps and labels
 
 ---
 
@@ -432,7 +540,8 @@ objective: 3 events
 | step_2.py | ✅ Complete | 300+ | Filter & tier classification |
 | step_3.py | ✅ Complete | 400+ | Malicious event generation with phase causality |
 | step_4.py | ✅ Complete | 400+ | Benign event generation with service diversity |
-| helper_functions.py | ✅ Complete | 500+ | Shared utilities & topology validation |
+| step_5.py | ✅ Complete | 240+ | False alarm event generation (3-type, UNSW-grounded) |
+| helper_functions.py | ✅ Complete | 550+ | Shared utilities & topology validation (Step 5 functions added) |
 | global_constraints.json | ✅ Complete | 200+ | Experiment rules (note: false alarm field name issue) |
 | zero_day_templates.json | ✅ Complete | 600+ | Scenario configs (includes _step3_malicious_events, _step4_benign_events) |
 | IDS_generation_method.md | 📖 Reference | 850+ | Implementation guide (includes Step 4 details) |

@@ -8,6 +8,7 @@ import step_1
 import step_2
 import step_3
 import step_4
+import step_5
 from pathlib import Path
 
 def main():
@@ -164,11 +165,24 @@ def main():
 
     # ============================================================
     # STEP 5: FALSE ALARMS
-    # Generate 5 suspicious-looking but benign events (2 types)
-    # Maintain realism while introducing local anomalies
+    # Generate 5 suspicious-looking but benign events
+    # UNSW-grounded, scenario-independent, 3 types
     # Output: false alarm events (per scenario)
     # ============================================================
-    # TODO: Implement Step 5
+    
+    print(f"\nRunning Step 5: generating false alarm events...")
+    step5_result = step_5.generate_false_alarms_step_5(
+        str(output_transformed_csv),
+        str(templates_path),
+        str(global_constraints_path),
+        random_seed=42
+    )
+    
+    if not step5_result['success']:
+        raise ValueError(
+            f"Step 5 failed: {len(step5_result['errors'])} error(s)\n"
+            + "\n".join(step5_result['errors'])
+        )
 
 
     # ============================================================
@@ -182,11 +196,11 @@ def main():
 
     # ============================================================
     # PIPELINE FLOW
-    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3 -> 4
-    # Then per scenario: 5 -> 6
+    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3 -> 4 -> 5
+    # Then per scenario: 6
     # ============================================================
     print("\n" + "="*80)
-    print(" PIPELINE STEPS 0-4 COMPLETED SUCCESSFULLY")
+    print(" PIPELINE STEPS 0-5 COMPLETED SUCCESSFULLY")
     print("="*80)
 
 

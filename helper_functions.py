@@ -502,3 +502,79 @@ def get_scenario_by_name(templates_dict, scenario_name):
         if scenario.get('scenario_name') == scenario_name:
             return scenario
     return None
+
+
+# ============================================================
+# UTILITY FUNCTIONS FOR EVENT GENERATION (Steps 3-6)
+# ============================================================
+
+def get_random_internal_host(allowed_prefixes):
+    """
+    Return a random internal hostname from allowed prefixes.
+    
+    Args:
+        allowed_prefixes (list): List of hostname prefixes (e.g., ['User', 'Enterprise'])
+    
+    Returns:
+        str: Hostname (e.g., 'User1', 'Enterprise0')
+    """
+    prefix = random.choice(allowed_prefixes)
+    
+    for ip_prefix, hosts in IP_RANGES.items():
+        matching_hosts = [h for h in hosts if h.startswith(prefix)]
+        if matching_hosts:
+            return random.choice(matching_hosts)
+    
+    return f"{prefix}0"
+
+
+def get_deterministic_ip_for_host(scenario_name, hostname):
+    """
+    Return a deterministic IP address for a hostname within a scenario.
+    
+    Args:
+        scenario_name (str): Scenario name
+        hostname (str): Hostname (e.g., 'User1', 'Enterprise0', 'external_45')
+    
+    Returns:
+        str: IP address
+    """
+    if hostname.startswith('external_'):
+        return f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
+    
+    for prefix, hosts in IP_RANGES.items():
+        if hostname in hosts:
+            hash_seed = f"{scenario_name}:{hostname}"
+            hash_value = int(hashlib.md5(hash_seed.encode()).hexdigest(), 16)
+            last_octet = (hash_value % 254) + 1
+            return f"{prefix}.{last_octet}"
+    
+    return "192.168.1.100"
+
+
+def violates_routing_constraint(src_subnet, dst_subnet):
+    """
+    Check if communication violates routing constraints.
+    
+    Constraint: No direct User ↔ Operational (must route through Enterprise).
+    
+    Args:
+        src_subnet (str): Source subnet
+        dst_subnet (str): Destination subnet
+    
+    Returns:
+        bool: True if violates constraint
+    """
+    if src_subnet == dst_subnet:
+        return False  # Same subnet is always allowed
+    
+    src_is_user = 'User' in src_subnet
+    src_is_op = 'Operational' in src_subnet
+    dst_is_user = 'User' in dst_subnet
+    dst_is_op = 'Operational' in dst_subnet
+    
+    # No direct User ↔ Operational
+    if (src_is_user and dst_is_op) or (src_is_op and dst_is_user):
+        return True
+    
+    return False
