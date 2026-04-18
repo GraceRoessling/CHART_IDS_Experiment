@@ -60,6 +60,7 @@ SCENARIO: passwd_gzip_scp
 
 ================================================================================
 OK - Updated templates saved successfully
+OK - Feature constraints populated from statistics
 
 ================================================================================
 Total scenarios processed: 5

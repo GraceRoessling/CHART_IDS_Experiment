@@ -7,6 +7,7 @@ import pre_step
 import step_1
 import step_2
 import step_3
+import step_4
 from pathlib import Path
 
 def main():
@@ -145,7 +146,20 @@ def main():
     # Use realistic feature ranges and valid host/subnet combinations
     # Output: benign events (per scenario)
     # ============================================================
-    # TODO: Implement Step 4
+    
+    print(f"\nRunning Step 4: generating benign events...")
+    step4_result = step_4.generate_benign_events_step_4(
+        str(output_transformed_csv),
+        str(templates_path),
+        str(global_constraints_path),
+        random_seed=42
+    )
+    
+    if not step4_result['success']:
+        raise ValueError(
+            f"Step 4 failed: {len(step4_result['errors'])} error(s)\n"
+            + "\n".join(step4_result['errors'])
+        )
 
 
     # ============================================================
@@ -168,11 +182,11 @@ def main():
 
     # ============================================================
     # PIPELINE FLOW
-    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3
-    # Then per scenario: 4 -> 5 -> 6
+    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3 -> 4
+    # Then per scenario: 5 -> 6
     # ============================================================
     print("\n" + "="*80)
-    print(" PIPELINE STEPS 0-3 COMPLETED SUCCESSFULLY")
+    print(" PIPELINE STEPS 0-4 COMPLETED SUCCESSFULLY")
     print("="*80)
 
 

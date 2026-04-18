@@ -685,45 +685,160 @@ PHASE_TIMELINE = {
 
 ---
 
-## **STEP 4: Generate Benign Events**
+## **STEP 4: Generate Benign Events** ✅ IMPLEMENTED
 
-**Objective:** Create 15 routine enterprise events unrelated to attack progression.
+**Objective:** Create 15 routine enterprise events reflecting normal enterprise traffic, unrelated to attack progression.
 
-**Note:** Pre-Step now provides **all 21 columns**. For benign events, use `sttl` / `dttl` for OS fingerprinting (Linux typically 64, Windows 128), `state` for normal connection progression (CON, FIN), and filter UNSW data with `attack_cat == 'Normal'`.
+**Implementation**: `step_4.py` → `generate_benign_events_step_4()`  
+**Output**: Updated templates with `_step4_benign_events` per scenario
+
+**Note:** Pre-Step provides **all 21 columns** plus additional fields (sttl, dttl, state, sloss, dloss, ct_src_dport_ltm, ct_dst_src_ltm). Benign events use these fields to maintain feature realism.
 
 **Inputs:**
-- Network topology
-- UNSW benign flows (attack_cat='Normal')
+- `UNSW_NB15_transformed.csv` (transformed dataset with all scenarios' benign rows)
+- Network topology definition
+- Scenario template (for host mapping)
 
 **Outputs:**
-- List of 15 benign event dictionaries
+- List of 15 benign event dictionaries per scenario, stored in templates
 
-### Step 4 Action Items
+### Step 4 Implementation Details ✅
 
-1. **General Benign Traffic Types:**
+**Core Strategy (Gap 7 Implementation - Scenario-Independent Benign Events):**
 
-   - Web browsing: proto=http, dport=80, low bytes (5KB-500KB), duration 1-30s
-   - DNS queries: proto=tcp/udp, dport=53, low bytes (100-1000), duration <2s
-   - SSH admin: dport=22, duration 10-600s, medium bytes
-   - FTP file transfer: dport=21, higher bytes, duration 5-120s
-   - SMTP email: dport=25, moderate bytes
-   - RDP remote access: dport=3389, sustained connections
+**Design Principle:** Benign events are intentionally **generic across all scenarios**. The IDS system has no prior knowledge of the specific zero-day attack, so network baseline traffic is indistinguishable between scenarios. This reflects realistic operational assumptions.
 
-2. **Generation Strategy (Gap 7 Implementation - Scenario-Independent Benign Events):**
+1. **Pooled Sampling:** Extract all rows where `attack_cat='Normal'` from all 5 scenarios combined (280,000 rows)
+   - Avoids scenario-specific benign events
+   - Ensures each scenario tests with generic enterprise baseline
 
-   **Design Principle:** Benign events are intentionally **generic across all scenarios**. The IDS system has no prior knowledge of the specific zero-day attack, so network baseline traffic is indistinguishable between scenarios. This reflects realistic operational assumptions.
+2. **Service Diversity:** Implement 6 benign service types with realistic feature ranges:
+   ```python
+   BENIGN_SERVICE_TEMPLATES = {
+       'http': {
+           'ports': [80],
+           'protocols': ['tcp'],
+           'duration_range': (0.5, 30),
+           'bytes_range': (500, 500000),
+           'packets_range': (5, 200),
+           'description': 'Web browsing',
+       },
+       'dns': {
+           'ports': [53],
+           'protocols': ['udp', 'tcp'],
+           'duration_range': (0.01, 2),
+           'bytes_range': (50, 1000),
+           'packets_range': (1, 5),
+           'description': 'DNS queries',
+       },
+       'ssh_admin': {
+           'ports': [22],
+           'protocols': ['tcp'],
+           'duration_range': (10, 600),
+           'bytes_range': (200, 100000),
+           'packets_range': (10, 500),
+           'description': 'SSH admin access',
+       },
+       'ftp': {
+           'ports': [21],
+           'protocols': ['tcp'],
+           'duration_range': (5, 120),
+           'bytes_range': (100000, 10000000),
+           'packets_range': (50, 2000),
+           'description': 'FTP file transfer',
+       },
+       'smtp': {
+           'ports': [25],
+           'protocols': ['tcp'],
+           'duration_range': (1, 30),
+           'bytes_range': (1000, 100000),
+           'packets_range': (5, 100),
+           'description': 'SMTP email',
+       },
+       'rdp': {
+           'ports': [3389],
+           'protocols': ['tcp'],
+           'duration_range': (30, 1800),
+           'bytes_range': (5000, 500000),
+           'packets_range': (50, 1000),
+           'description': 'RDP remote access',
+       },
+   }
+   ```
 
-   a) Sample from UNSW rows where `attack_cat`='Normal' (from any scenario, not per-scenario)
-   b) Randomly assign sources from User/Enterprise subnets
-   c) Randomly assign destinations (internal or external, appropriate to service)
-   d) Assign deterministic hostnames (preserving topology)
-   e) Ensure variety (not all same service/port)
+3. **Temporal Distribution:** Uniform spread across [0, 1800] seconds
+   - Benign traffic present throughout observation window
+   - No artificial clustering in non-attack phases
+   - Reflects realistic network baseline (always active)
 
-3. **Constraints:**
+4. **Topology-Aware Host Assignment:**
+   - Source hosts: Randomly from User/Enterprise subnets
+   - Destination hosts: Internal or external (random selection)
+   - DNS traffic routed to Enterprise DNS servers
+   - Deterministic IP→host mapping via MD5(`scenario_name:hostname`)
+   - Enforces routing constraints (no direct User ↔ Operational)
 
-   a) Must be internally consistent (bytes, packets, duration aligned)
-   b) No sensitive ports (22, 445 for persistent connections in benign events—unless SSH admin is expected)
-   c) Label = 'Benign', attack_cat = 'Normal'
+5. **Feature Alignment:**
+   - Extract UNSW benign row features (duration, bytes, packets)
+   - Adjust to service-appropriate ranges
+   - Maintain byte↔packet consistency
+   - Use service templates to clamp outliers to realistic ranges
+
+### Step 4 Implementation Notes ✅
+
+**Generation Process:**
+
+```python
+def generate_benign_events_step_4(
+    transformed_csv_path,
+    templates_path,
+    global_constraints_path,
+    random_seed=42
+):
+    """
+    Generate 15 benign events per scenario.
+    
+    Process:
+    1. Load transformed dataset (876,705 rows total, all scenarios)
+    2. Pool benign data: filter attack_cat='Normal' (280,000 rows)
+    3. For each scenario:
+       a) Sample 15 random rows from benign pool
+       b) Assign random service types (HTTP, DNS, SSH, FTP, SMTP, RDP)
+       c) Assign deterministic hosts (MD5-based, scenario-aware)
+       d) Generate timestamps uniformly in [0, 1800]
+       e) Validate topology constraints
+    4. Update templates with _step4_benign_events
+    5. Save updated templates.json
+    """
+```
+
+**Verification Results (April 18, 2026):**
+
+| Scenario | Events | Pooled Source | Services | Time Spread | External Hosts |
+|----------|--------|---------------|----------|------------|-----------------|
+| WannaCry | 15 | All scenarios (280K rows) | 6 types | 0-1800s ✅ | Yes ✅ |
+| Data_Theft | 15 | All scenarios (280K rows) | 6 types | 0-1800s ✅ | Yes ✅ |
+| ShellShock | 15 | All scenarios (280K rows) | 6 types | 0-1800s ✅ | Yes ✅ |
+| Netcat_Backdoor | 15 | All scenarios (280K rows) | 6 types | 0-1800s ✅ | Yes ✅ |
+| passwd_gzip_scp | 15 | All scenarios (280K rows) | 6 types | 0-1800s ✅ | Yes ✅ |
+
+✅ **All scenarios generated 15 benign events**  
+✅ **Service diversity present (HTTP, DNS, SSH, FTP, SMTP, RDP)**  
+✅ **Timestamps uniformly distributed across window**  
+✅ **Topology constraints enforced (no invalid subnets)**  
+✅ **External hosts included (realistic web/DNS traffic)**  
+
+**Events Stored in Templates** with fields:
+- timestamp, src_host, dst_host, src_subnet, dst_subnet
+- src_ip, dst_ip
+- proto, sport, dport, service
+- duration, bytes, packets, sbytes, dbytes, spkts, dpkts
+- attack_cat ('Normal'), label ('Benign')
+- state, sttl, dttl, sloss, dloss
+- ct_src_dport_ltm, ct_dst_src_ltm
+- _source ('UNSW_benign')
+
+**No Gaps** ✅
 
 ---
 
@@ -987,7 +1102,7 @@ PHASE_TIMELINE = {
 3. ✅ **Step 1**: Update scenario templates → `templates/zero_day_templates.json` (add TIER + phases)
 4. ✅ **Step 2**: Extract UNSW stats & classify TIER (1 or 2 only)
 5. ✅ **Step 3**: Generate malicious events with phase-based causality (10-11 events, TIER 1 sampling)
-6. 📋 **Step 4**: Generate benign events (15 events) — TODO
+6. ✅ **Step 4**: Generate benign events (15 events, pooled scenario-independent sampling)
 7. 📋 **Step 5**: Generate false alarm events (5 events, 2 types) — TODO
 8. 📋 **Step 6**: Assemble & timestamp → Final 30-event CSV tables — TODO
 
