@@ -2,13 +2,20 @@
 IDS Pipeline (Main Orchestrator - Comment Only)
 """
 
+import pre_step
+from pathlib import Path
+
+
 def main():
 
     # ============================================================
     # PRE-STEP: TRANSFORM DATA
     # Load raw UNSW dataset and convert to standardized schema
-        # Map IPs → hostnames, assign subnets, infer services, aggregate features
-        # Output: UNSW_NB15_transformed.csv
+    # ============================================================
+    input_unsw_csv = Path("IDS_Datasets/UNSW_NB15_training-set(in).csv")
+    output_transformed_csv = Path("IDS_Datasets/UNSW_NB15_transformed.csv")
+    
+    pre_step.batch_transform_unsw(str(input_unsw_csv), str(output_transformed_csv))
 
 
     # ============================================================
@@ -66,5 +73,5 @@ def main():
     # Then per scenario: 3 → 4 → 5 → 6
 
 
- if __name__ == "__main__":
+if __name__ == "__main__":
     main()
