@@ -487,6 +487,99 @@ def save_templates(template_dict, template_path):
         json.dump(template_dict, f, indent=2)
 
 
+def initialize_working_templates(source_templates_path, working_templates_path):
+    """
+    Initialize a fresh working templates file from the clean source templates.
+    Overwrites any existing working templates file.
+    
+    This keeps the source zero_day_templates.json immutable while all intermediate
+    steps write to the working templates file.
+    
+    Args:
+        source_templates_path (str): Path to clean zero_day_templates.json (read-only)
+        working_templates_path (str): Path to _working_templates.json (working copy)
+        
+    Returns:
+        dict: The loaded and saved templates dictionary
+        
+    Raises:
+        Exception: If source file cannot be read
+    """
+    import json
+    from pathlib import Path
+    
+    # Load source templates
+    source_path = Path(source_templates_path)
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source templates file not found: {source_templates_path}")
+    
+    with open(source_path, 'r') as f:
+        templates = json.load(f)
+    
+    # Save to working templates location
+    save_templates(templates, working_templates_path)
+    
+    return templates
+
+
+def cleanup_zero_day_templates(templates_path):
+    """
+    Remove all intermediate/accumulated pipeline data from zero_day_templates.json.
+    
+    Removes fields prefixed with underscore that were added during pipeline execution:
+      - _step2_stats
+      - _step3_malicious_events
+      - _step4_benign_events
+      - _step5_false_alarm_events
+    
+    This is safe because:
+      1. These fields are regenerated fresh each pipeline run
+      2. They are now persisted in _working_templates.json instead
+      3. The source template should contain only static scenario definitions
+    
+    Args:
+        templates_path (str): Path to zero_day_templates.json
+        
+    Returns:
+        dict: The cleaned templates dictionary
+        
+    Raises:
+        Exception: If file cannot be read/written
+    """
+    import json
+    from pathlib import Path
+    
+    path = Path(templates_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Templates file not found: {templates_path}")
+    
+    with open(path, 'r') as f:
+        templates = json.load(f)
+    
+    # Fields to remove (all intermediate pipeline data)
+    intermediate_fields = [
+        '_step2_stats',
+        '_step3_malicious_events',
+        '_step4_benign_events',
+        '_step5_false_alarm_events'
+    ]
+    
+    removed_count = 0
+    
+    # Remove intermediate fields from each scenario
+    if 'scenarios' in templates and isinstance(templates['scenarios'], list):
+        for scenario in templates['scenarios']:
+            for field in intermediate_fields:
+                if field in scenario:
+                    del scenario[field]
+                    removed_count += 1
+    
+    # Save cleaned templates
+    save_templates(templates, str(path))
+    
+    return templates, removed_count
+
+
 def get_scenario_by_name(templates_dict, scenario_name):
     """
     Retrieve a single scenario template by name.

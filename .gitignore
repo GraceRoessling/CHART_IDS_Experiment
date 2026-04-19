@@ -2,4 +2,6 @@
 IDS_Datasets/CICIDS2017_Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv
 IDS_Datasets/UNSW_NB15_training-set(in).csv
 IDS_Datasets/UNSW_NB15_transformed.csv
-templates/
+templates/_working_templates.json
+templates/zero_day_templates.json
+IDS_tables/30events_15pct_fa

@@ -1,30 +1,31 @@
-_total_events_param,_false_alarm_pct_param,_malicious_count_param,_benign_count_param,_false_alarm_count_param,timestamp,src_host,dst_host,src_subnet,dst_subnet,proto,sport,dport,service,duration,bytes,packets,sttl,dttl,state,sloss,dloss,ct_src_dport_ltm,ct_dst_src_ltm,attack_cat,label,_unsw_row_id,scenario_name,_source,phase
-30,0.15,11,15,4,7.50322656680008,User3,external_46,Subnet 1 (User),External,udp,7921,53,dns,0.013157,50,1,31,29,FIN,4,4,6,11,Normal,Benign,1962,WannaCry,UNSW_benign,
-30,0.15,11,15,4,66.96322144464682,User3,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,54970,22,ssh_admin,10.0,200,10,254,0,INT,0,0,1,10,Normal,Benign,43142,WannaCry,UNSW_benign,
-30,0.15,11,15,4,82.50879551073578,User4,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,8346,25,smtp,1.0,1000,5,31,29,CON,0,0,1,2,Normal,Benign,37590,WannaCry,UNSW_benign,
-30,0.15,11,15,4,191.82803953736513,Enterprise2,User1,Subnet 2 (Enterprise),Subnet 1 (User),tcp,28313,25,smtp,1.0,1000,5,254,252,FIN,2,1,1,3,Normal,Benign,24,WannaCry,UNSW_benign,
-30,0.15,11,15,4,203.00984622687338,Enterprise1,User1,Subnet 2 (Enterprise),Subnet 1 (User),tcp,14681,80,http,0.5,500,5,31,29,FIN,7,24,1,2,Normal,Benign,29706,WannaCry,UNSW_benign,
-30,0.15,11,15,4,220.94136424920373,User1,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,11639,3389,rdp,30.0,5000,50,31,29,CON,0,0,4,2,Normal,Benign,35535,WannaCry,UNSW_benign,
-30,0.15,11,15,4,306.69134675778633,external_Defender,external_OpHost0,External,External,tcp,11932,20,ftp-data,1.098619,9462,20,62,252,FIN,1,4,1,2,Exploits,Malicious,95526,WannaCry,UNSW_actual,initial_access
-30,0.15,11,15,4,375.65204124472064,external_external_13,external_OpHost1,External,External,udp,60853,53,dns,3e-06,114,2,254,0,INT,0,0,14,19,Generic,Malicious,148848,WannaCry,UNSW_actual,initial_access
-30,0.15,11,15,4,453.16441364763955,external_User1,external_Enterprise2,External,External,nvp,26167,5000,-,5e-06,180,2,254,0,INT,0,0,10,10,Exploits,Malicious,69843,WannaCry,UNSW_actual,progression
-30,0.15,11,15,4,525.2234791457855,external_User1,external_OpHost1,External,External,tcp,27817,21,ftp,2.671033,2994,48,62,252,FIN,7,9,1,1,Exploits,Malicious,63771,WannaCry,UNSW_actual,progression
-30,0.15,11,15,4,601.639784811027,external_external_3,external_OpHost2,External,External,tcp,12184,5000,-,0.791789,1110,18,254,252,FIN,2,1,1,3,Fuzzers,Malicious,80918,WannaCry,UNSW_actual,progression
-30,0.15,11,15,4,633.6594545112627,Enterprise2,external_55,Subnet 2 (Enterprise),External,tcp,7164,16717,smtp,0.1,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
-30,0.15,11,15,4,678.7901646607752,external_User1,external_Defender,External,External,tcp,63515,5000,-,0.012175,3428,26,31,29,FIN,4,4,1,1,Normal,Malicious,10215,WannaCry,UNSW_actual,progression
-30,0.15,11,15,4,750.199019772629,external_Defender,external_OpHost2,External,External,tcp,27116,5000,-,0.643463,918,18,254,252,FIN,2,1,1,1,Reconnaissance,Malicious,139568,WannaCry,UNSW_actual,progression
-30,0.15,11,15,4,826.4912823801499,external_external_52,external_Defender,External,External,tcp,32839,80,http,1.203189,2072,20,62,252,FIN,2,2,3,5,Analysis,Malicious,92407,WannaCry,UNSW_actual,progression
-30,0.15,11,15,4,909.7482665666928,external_Enterprise0,external_Enterprise1,External,External,mux,33485,5000,-,1.150377,400,4,254,0,INT,0,0,1,9,Fuzzers,Malicious,116848,WannaCry,UNSW_actual,objective
-30,0.15,11,15,4,1058.1741222090482,external_Enterprise0,external_OpHost0,External,External,udp,55101,53,dns,9e-06,114,2,254,0,INT,0,0,11,28,Generic,Malicious,163698,WannaCry,UNSW_actual,objective
-30,0.15,11,15,4,1203.8992558068367,User2,Enterprise1,Subnet 1 (User),Subnet 2 (Enterprise),tcp,34316,25,smtp,1.0,1000,5,254,252,FIN,4,3,1,5,Normal,Benign,100213,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1209.2745843380148,Enterprise2,external_26,Subnet 2 (Enterprise),External,tcp,30463,25247,dns,0.1,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
-30,0.15,11,15,4,1293.2876998870688,User2,Enterprise1,Subnet 1 (User),Subnet 2 (Enterprise),tcp,16064,25,smtp,1.0,1000,5,31,29,FIN,7,13,1,1,Normal,Benign,6683,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1332.264373224418,Enterprise2,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,14151,22,ssh_admin,10.0,200,10,31,29,FIN,7,27,1,2,Normal,Benign,37843,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1404.1503099107952,User4,external_17,Subnet 1 (User),External,tcp,26374,80,http,0.5,500,5,31,29,FIN,7,18,1,1,Normal,Benign,5174,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1409.6716376833465,User1,external_90,Subnet 1 (User),External,tcp,15134,25,smtp,1.0,152023,304,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
-30,0.15,11,15,4,1484.749436634746,User0,external_49,Subnet 1 (User),External,tcp,40589,25,smtp,1.0,243704,487,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
-30,0.15,11,15,4,1553.5594103255453,Enterprise0,external_66,Subnet 2 (Enterprise),External,tcp,9797,22,ssh_admin,10.0,200,10,31,29,CON,0,0,1,2,Normal,Benign,27561,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1618.883636992936,Enterprise0,external_47,Subnet 2 (Enterprise),External,tcp,58749,25,smtp,1.0,1000,5,254,252,FIN,2,1,2,5,Normal,Benign,42727,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1683.4915510996848,Enterprise2,external_20,Subnet 2 (Enterprise),External,tcp,38517,22,ssh_admin,10.0,200,10,31,29,FIN,7,7,1,3,Normal,Benign,11578,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1685.658274006696,User3,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,46316,3389,rdp,30.0,5000,50,31,29,FIN,7,7,1,3,Normal,Benign,34386,WannaCry,UNSW_benign,
-30,0.15,11,15,4,1774.3278433240687,User0,external_30,Subnet 1 (User),External,tcp,59858,80,http,0.726172,500,5,254,252,FIN,2,1,1,1,Normal,Benign,107205,WannaCry,UNSW_benign,
+id,_total_events_param,_false_alarm_pct_param,_malicious_count_param,_benign_count_param,_false_alarm_count_param,timestamp,src_host,dst_host,src_subnet,dst_subnet,proto,sport,dport,service,duration,bytes,packets,sttl,dttl,state,sloss,dloss,ct_src_dport_ltm,ct_dst_src_ltm,attack_cat,label,_unsw_row_id,scenario_name,_source,phase
+1,30,0.15,11,15,4,7.50322656680008,User3,external_46,Subnet 1 (User),External,udp,48365,53,dns,0.01,50,1,254,0,REQ,1,0,1,2,Normal,Benign,92780,WannaCry,UNSW_benign,
+2,30,0.15,11,15,4,26.081649788824844,Enterprise0,external_66,Subnet 2 (Enterprise),External,tcp,48921,22,ssh_admin,10.0,200,10,254,252,FIN,2,1,1,3,Normal,Benign,11701,WannaCry,UNSW_benign,
+3,30,0.15,11,15,4,66.96322144464682,User3,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,24366,22,ssh_admin,10.0,200,10,31,29,CON,0,0,2,2,Normal,Benign,6041,WannaCry,UNSW_benign,
+4,30,0.15,11,15,4,82.50879551073578,User4,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,4535,25,smtp,1.0,1000,5,31,29,CON,0,0,1,3,Normal,Benign,40043,WannaCry,UNSW_benign,
+5,30,0.15,11,15,4,191.82803953736513,Enterprise2,User1,Subnet 2 (Enterprise),Subnet 1 (User),tcp,54431,25,smtp,6.351002,1000,5,31,29,FIN,30,32,1,1,Normal,Benign,27065,WannaCry,UNSW_benign,
+6,30,0.15,11,15,4,203.00984622687338,Enterprise1,User1,Subnet 2 (Enterprise),Subnet 1 (User),tcp,56190,80,http,0.694552,500,5,31,29,FIN,1,2,1,4,Normal,Benign,34163,WannaCry,UNSW_benign,
+7,30,0.15,11,15,4,220.94136424920373,User1,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,28311,3389,rdp,30.0,5000,50,31,29,CON,0,0,1,2,Normal,Benign,37473,WannaCry,UNSW_benign,
+8,30,0.15,11,15,4,267.6538703114536,Enterprise2,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,47783,22,ssh_admin,10.0,200,10,254,252,FIN,4,4,1,4,Normal,Benign,42027,WannaCry,UNSW_benign,
+9,30,0.15,11,15,4,303.16441364763955,external_User0,external_Enterprise0,External,External,tcp,24183,5000,-,0.017065,35600,98,31,29,FIN,7,18,1,2,Normal,Malicious,22560,WannaCry,UNSW_actual,initial_access
+10,30,0.15,11,15,4,375.2234791457855,external_Defender,external_external_254,External,External,tcp,51503,5000,-,0.483499,790,16,254,252,FIN,2,1,1,12,Normal,Malicious,72276,WannaCry,UNSW_actual,initial_access
+11,30,0.15,11,15,4,451.639784811027,external_User1,external_external_227,External,External,udp,45015,53,dns,0.000952,292,4,31,29,CON,0,0,1,1,Normal,Malicious,28888,WannaCry,UNSW_actual,progression
+12,30,0.15,11,15,4,528.7901646607752,external_Defender,external_external_131,External,External,arp,23109,5000,-,0.0,46,1,0,0,INT,0,0,2,2,Normal,Malicious,115140,WannaCry,UNSW_actual,progression
+13,30,0.15,11,15,4,600.199019772629,external_User1,external_external_95,External,External,tcp,5152,80,http,1.005016,11748,30,31,29,FIN,3,5,1,1,Normal,Malicious,21772,WannaCry,UNSW_actual,progression
+14,30,0.15,11,15,4,609.2745843380148,Enterprise2,external_55,Subnet 2 (Enterprise),External,tcp,7164,16717,smtp,0.84571,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
+15,30,0.15,11,15,4,676.4912823801499,external_User3,external_OpHost0,External,External,mux,9083,5000,-,1.150377,400,4,254,0,INT,0,0,1,9,Analysis,Malicious,86054,WannaCry,UNSW_actual,progression
+16,30,0.15,11,15,4,754.8741332833464,external_User0,external_Enterprise2,External,External,udp,38116,5000,-,0.03711,848,8,31,29,CON,0,0,1,4,Normal,Malicious,14927,WannaCry,UNSW_actual,progression
+17,30,0.15,11,15,4,829.0870611045241,external_external_122,external_OpHost0,External,External,tcp,60283,5000,-,0.663193,10898,40,62,252,FIN,6,9,1,1,Exploits,Malicious,94172,WannaCry,UNSW_actual,progression
+18,30,0.15,11,15,4,902.204406220407,external_Enterprise0,external_external_114,External,External,tcp,40129,5000,-,0.007987,15730,70,31,29,FIN,7,11,1,3,Normal,Malicious,14010,WannaCry,UNSW_actual,objective
+19,30,0.15,11,15,4,1005.8926568387591,external_Defender,external_OpServer0,External,External,tcp,52175,21,ftp,10.609333,2936,46,62,252,FIN,7,9,2,2,Exploits,Malicious,58539,WannaCry,UNSW_actual,objective
+20,30,0.15,11,15,4,1108.0943045667782,external_User4,external_Enterprise2,External,External,tcp,62365,5000,-,0.004638,6392,36,31,29,FIN,7,7,1,4,Normal,Malicious,17427,WannaCry,UNSW_actual,objective
+21,30,0.15,11,15,4,1203.8992558068367,User3,Enterprise0,Subnet 1 (User),Subnet 2 (Enterprise),tcp,38885,3389,rdp,30.0,5000,50,254,252,FIN,2,1,1,5,Normal,Benign,84384,WannaCry,UNSW_benign,
+22,30,0.15,11,15,4,1209.6716376833465,Enterprise2,external_26,Subnet 2 (Enterprise),External,tcp,30463,25247,dns,0.1,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
+23,30,0.15,11,15,4,1293.2876998870688,User4,external_17,Subnet 1 (User),External,tcp,15790,80,http,0.5,500,5,0,0,INT,0,0,2,2,Normal,Benign,111935,WannaCry,UNSW_benign,
+24,30,0.15,11,15,4,1401.9567270675761,User0,external_30,Subnet 1 (User),External,tcp,45395,80,http,0.6569,500,5,254,252,FIN,2,1,2,6,Normal,Benign,24316,WannaCry,UNSW_benign,
+25,30,0.15,11,15,4,1404.1503099107952,Enterprise0,external_47,Subnet 2 (Enterprise),External,tcp,12418,25,smtp,1.0,1000,5,31,29,FIN,7,18,1,1,Normal,Benign,22329,WannaCry,UNSW_benign,
+26,30,0.15,11,15,4,1460.3726031366891,User0,external_49,Subnet 1 (User),External,tcp,40589,25,smtp,1.0,243704,487,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
+27,30,0.15,11,15,4,1484.749436634746,User1,external_90,Subnet 1 (User),External,tcp,15134,25,smtp,1.0,152023,304,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
+28,30,0.15,11,15,4,1618.883636992936,Enterprise2,external_20,Subnet 2 (Enterprise),External,tcp,2749,22,ssh_admin,10.0,200,10,31,29,FIN,4,4,4,6,Normal,Benign,39660,WannaCry,UNSW_benign,
+29,30,0.15,11,15,4,1683.4915510996848,User2,Enterprise1,Subnet 1 (User),Subnet 2 (Enterprise),tcp,56414,25,smtp,1.0,1000,5,254,252,FIN,2,1,2,6,Normal,Benign,42499,WannaCry,UNSW_benign,
+30,30,0.15,11,15,4,1774.3278433240687,User2,Enterprise1,Subnet 1 (User),Subnet 2 (Enterprise),tcp,56677,25,smtp,1.0,1000,5,31,29,CON,0,0,1,3,Normal,Benign,40378,WannaCry,UNSW_benign,

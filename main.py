@@ -12,11 +12,18 @@ import step_4
 import step_5
 import step_6
 from pathlib import Path
+from helper_functions import initialize_working_templates
 
 
 # ============================================================
 # PARAMETERIZATION CONSTANTS
 # ============================================================
+
+# ============================================================
+# WORKING TEMPLATES PATH (hard-coded, consistent across runs)
+# Clean zero_day_templates.json remains untouched
+# ============================================================
+WORKING_TEMPLATES_PATH = "templates/_working_templates.json"
 
 # ============================================================
 # FALSE ALARM RATE BINS (safe for ALL scenarios)
@@ -244,6 +251,22 @@ def main():
     print(f"{'='*70}\n")
 
     # ============================================================
+    # INITIALIZE WORKING TEMPLATES
+    # Create a fresh copy of zero_day_templates.json for this pipeline run
+    # All intermediate steps will modify working_templates, not the source
+    # ============================================================
+    
+    source_templates_path = Path("templates/zero_day_templates.json")
+    working_templates_path = Path(WORKING_TEMPLATES_PATH)
+    
+    try:
+        print(f"Initializing working templates...")
+        initialize_working_templates(str(source_templates_path), str(working_templates_path))
+        print(f"  ✓ Working templates initialized: {working_templates_path}")
+    except Exception as e:
+        raise ValueError(f"Failed to initialize working templates: {e}")
+
+    # ============================================================
     # PRE-STEP: TRANSFORM DATA
     # Load raw UNSW dataset and convert to standardized schema
     # ============================================================
@@ -291,40 +314,37 @@ def main():
     # Output: validated templates ready for Step 2
     # ============================================================
     
-    templates_path = Path("templates/zero_day_templates.json")
+    # Use working templates (initialized above)
+    print(f"Running Step 1: creating and validating zero-day templates...")
+    step1_result = step_1.validate_templates_step(
+        str(working_templates_path),
+        str(global_constraints_path)
+    )
     
-    # Check if templates file exists
-    if not templates_path.exists():
-        print(f"Running Step 1: creating and validating zero-day templates...")
-        step1_result = step_1.validate_templates_step(
-            str(templates_path),
-            str(global_constraints_path)
+    if not step1_result['success']:
+        raise ValueError(
+            f"Step 1 validation failed: {len(step1_result['errors'])} error(s)\n"
+            + "\n".join(step1_result['errors'])
         )
+    
+    # Load validated templates from working file
+    try:
+        with open(working_templates_path, 'r') as f:
+            templates_dict = json.load(f)
         
-        if not step1_result['success']:
-            raise ValueError(
-                f"Step 1 validation failed: {len(step1_result['errors'])} error(s)\n"
-                + "\n".join(step1_result['errors'])
-            )
-    else:
-        # Verify templates are valid JSON without rerunning Step 1
-        try:
-            with open(templates_path, 'r') as f:
-                templates_dict = json.load(f)
-            
-            # Quick validation: check for required scenarios structure
-            if 'scenarios' not in templates_dict:
-                raise ValueError("Templates JSON missing 'scenarios' key")
-            if not isinstance(templates_dict['scenarios'], list):
-                raise ValueError("Templates 'scenarios' must be a list")
-            if len(templates_dict['scenarios']) == 0:
-                raise ValueError("Templates 'scenarios' is empty")
-            
-            print(f" Templates file exists and is valid JSON: {templates_path}")
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Templates JSON is malformed: {e}")
-        except Exception as e:
-            raise ValueError(f"Templates validation failed: {e}")
+        # Quick validation: check for required scenarios structure
+        if 'scenarios' not in templates_dict:
+            raise ValueError("Templates JSON missing 'scenarios' key")
+        if not isinstance(templates_dict['scenarios'], list):
+            raise ValueError("Templates 'scenarios' must be a list")
+        if len(templates_dict['scenarios']) == 0:
+            raise ValueError("Templates 'scenarios' is empty")
+        
+        print(f" ✓ Templates validated: {working_templates_path}")
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Templates JSON is malformed: {e}")
+    except Exception as e:
+        raise ValueError(f"Templates validation failed: {e}")
 
 
     # ============================================================
@@ -376,7 +396,7 @@ def main():
     print(f"\nRunning Step 2: filtering & tier classification...")
     step2_result = step_2.process_step_2(
         str(output_transformed_csv),
-        str(templates_path),
+        str(working_templates_path),
         str(global_constraints_path),
         output_report_path="step_2_summary.txt"
     )
@@ -406,7 +426,7 @@ def main():
     print(f"\nRunning Step 3: generating malicious events...")
     step3_result = step_3.generate_malicious_events_step_3(
         str(output_transformed_csv),
-        str(templates_path),
+        str(working_templates_path),
         str(global_constraints_path),
         malicious_count_per_scenario=malicious_count_per_scenario,
         random_seed=42
@@ -437,7 +457,7 @@ def main():
     print(f"\nRunning Step 4: generating benign events...")
     step4_result = step_4.generate_benign_events_step_4(
         str(output_transformed_csv),
-        str(templates_path),
+        str(working_templates_path),
         str(global_constraints_path),
         benign_count_per_scenario=benign_count_per_scenario,
         random_seed=42
@@ -469,7 +489,7 @@ def main():
     print(f"\nRunning Step 5: generating false alarm events...")
     step5_result = step_5.generate_false_alarms_step_5(
         str(output_transformed_csv),
-        str(templates_path),
+        str(working_templates_path),
         str(global_constraints_path),
         false_alarm_count_per_scenario=false_alarm_count_per_scenario,
         fa_type_ratio_mode=fa_type_ratio_mode,
@@ -501,7 +521,7 @@ def main():
     
     print(f"\nRunning Step 6: assembling {total_events_per_table}-event tables with temporal ordering...")
     step6_result = step_6.assemble_30_events_step_6(
-        str(templates_path),
+        str(working_templates_path),
         str(global_constraints_path),
         output_dir=str(output_dir),
         malicious_count_per_scenario=malicious_count_per_scenario,

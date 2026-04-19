@@ -2,7 +2,7 @@
 STEP 6: FINAL IDS TABLE ASSEMBLY WITH PARAMETERIZED COUNTS
 ================================================================================
 
-Timestamp: 2026-04-19 10:28:28.633073
+Timestamp: 2026-04-19 10:50:33.725958
 Output Directory: IDS_tables\30events_15pct_fa
 Total Events Per Table: 30
 False Alarm Percentage: 15%
@@ -13,8 +13,8 @@ Random Seed: 42
 Scenario: WannaCry
 ================================================================================
 CSV Path: IDS_tables\30events_15pct_fa\WannaCry_30events.csv
-Row Count: 29
-Total Columns (metadata + flow): 30
+Row Count: 30
+Total Columns (metadata + flow): 31
 
 Metadata Columns (first 5):
   1. _total_events_param: 30
@@ -24,9 +24,9 @@ Metadata Columns (first 5):
   5. _false_alarm_count_param: 4
 
 Label Distribution:
-  Malicious: 10 ( 34.5%)
-  Benign: 15 ( 51.7%)
-  False Alarm:  4 ( 13.8%)
+  Malicious: 11 ( 36.7%)
+  Benign: 15 ( 50.0%)
+  False Alarm:  4 ( 13.3%)
 
 Time Range:
   Min: 7.5s
@@ -36,8 +36,8 @@ Time Range:
 Scenario: Data_Theft
 ================================================================================
 CSV Path: IDS_tables\30events_15pct_fa\Data_Theft_30events.csv
-Row Count: 28
-Total Columns (metadata + flow): 30
+Row Count: 30
+Total Columns (metadata + flow): 31
 
 Metadata Columns (first 5):
   1. _total_events_param: 30
@@ -47,20 +47,20 @@ Metadata Columns (first 5):
   5. _false_alarm_count_param: 4
 
 Label Distribution:
-  Malicious:  9 ( 32.1%)
-  Benign: 15 ( 53.6%)
-  False Alarm:  4 ( 14.3%)
+  Malicious:  9 ( 30.0%)
+  Benign: 17 ( 56.7%)
+  False Alarm:  4 ( 13.3%)
 
 Time Range:
   Min: 7.5s
-  Max: 1647.5s
+  Max: 1765.8s
 
 ================================================================================
 Scenario: ShellShock
 ================================================================================
 CSV Path: IDS_tables\30events_15pct_fa\ShellShock_30events.csv
-Row Count: 28
-Total Columns (metadata + flow): 30
+Row Count: 30
+Total Columns (metadata + flow): 31
 
 Metadata Columns (first 5):
   1. _total_events_param: 30
@@ -70,20 +70,20 @@ Metadata Columns (first 5):
   5. _false_alarm_count_param: 4
 
 Label Distribution:
-  Malicious:  9 ( 32.1%)
-  Benign: 15 ( 53.6%)
-  False Alarm:  4 ( 14.3%)
+  Malicious:  9 ( 30.0%)
+  Benign: 17 ( 56.7%)
+  False Alarm:  4 ( 13.3%)
 
 Time Range:
   Min: 7.5s
-  Max: 1666.6s
+  Max: 1770.0s
 
 ================================================================================
 Scenario: Netcat_Backdoor
 ================================================================================
 CSV Path: IDS_tables\30events_15pct_fa\Netcat_Backdoor_30events.csv
-Row Count: 26
-Total Columns (metadata + flow): 30
+Row Count: 30
+Total Columns (metadata + flow): 31
 
 Metadata Columns (first 5):
   1. _total_events_param: 30
@@ -93,20 +93,20 @@ Metadata Columns (first 5):
   5. _false_alarm_count_param: 4
 
 Label Distribution:
-  Malicious:  7 ( 26.9%)
-  Benign: 15 ( 57.7%)
-  False Alarm:  4 ( 15.4%)
+  Malicious:  7 ( 23.3%)
+  Benign: 19 ( 63.3%)
+  False Alarm:  4 ( 13.3%)
 
 Time Range:
   Min: 7.5s
-  Max: 1666.6s
+  Max: 1770.0s
 
 ================================================================================
 Scenario: passwd_gzip_scp
 ================================================================================
 CSV Path: IDS_tables\30events_15pct_fa\passwd_gzip_scp_30events.csv
-Row Count: 26
-Total Columns (metadata + flow): 30
+Row Count: 30
+Total Columns (metadata + flow): 31
 
 Metadata Columns (first 5):
   1. _total_events_param: 30
@@ -116,13 +116,13 @@ Metadata Columns (first 5):
   5. _false_alarm_count_param: 4
 
 Label Distribution:
-  Malicious:  7 ( 26.9%)
-  Benign: 15 ( 57.7%)
-  False Alarm:  4 ( 15.4%)
+  Malicious:  7 ( 23.3%)
+  Benign: 19 ( 63.3%)
+  False Alarm:  4 ( 13.3%)
 
 Time Range:
   Min: 7.5s
-  Max: 1666.6s
+  Max: 1770.0s
 
 
 ================================================================================
@@ -130,15 +130,4 @@ FINAL SUMMARY
 ================================================================================
 Total Scenarios Processed: 5
 Successful CSVs: 5
-Errors: 9
-
-Errors:
-  -   WannaCry: Malicious count 10 != expected 11
-  -   Data_Theft: Expected ~30 events, got 28
-  -   Data_Theft: Benign count 15 != expected 17
-  -   ShellShock: Expected ~30 events, got 28
-  -   ShellShock: Benign count 15 != expected 17
-  -   Netcat_Backdoor: Expected ~30 events, got 26
-  -   Netcat_Backdoor: Benign count 15 != expected 19
-  -   passwd_gzip_scp: Expected ~30 events, got 26
-  -   passwd_gzip_scp: Benign count 15 != expected 19
+Errors: 0

@@ -100,6 +100,7 @@ def assign_timestamps_to_events(
 ):
     """
     Assign timestamps to all events based on phase architecture.
+    Dynamically allocates actual event counts across phases.
     
     Args:
         malicious_events (list): List of malicious event dicts
@@ -123,38 +124,67 @@ def assign_timestamps_to_events(
     arch = TEMPORAL_ARCHITECTURE[scenario_name]
     phases = arch['phases']
     
-    # Process each phase
+    # Count attack and benign phases to determine distribution
+    attack_phases = [p for p in phases if p['type'] == 'attack']
+    benign_phases = [p for p in phases if p['type'] == 'benign']
+    
+    # Distribute malicious events across attack phases evenly
+    mal_per_phase = []
+    if attack_phases:
+        events_per_attack_phase = len(malicious_events) // len(attack_phases)
+        remainder = len(malicious_events) % len(attack_phases)
+        for i in range(len(attack_phases)):
+            count = events_per_attack_phase + (1 if i < remainder else 0)
+            mal_per_phase.append(count)
+    
+    # Distribute benign events across benign phases evenly
+    ben_per_phase = []
+    if benign_phases:
+        events_per_benign_phase = len(benign_events) // len(benign_phases)
+        remainder = len(benign_events) % len(benign_phases)
+        for i in range(len(benign_phases)):
+            count = events_per_benign_phase + (1 if i < remainder else 0)
+            ben_per_phase.append(count)
+    
+    # Process each phase with dynamically calculated event counts
     malicious_idx = 0
     benign_idx = 0
+    attack_phase_idx = 0
+    benign_phase_idx = 0
     
     for phase in phases:
         phase_name = phase['name']
         phase_start = phase['start']
         phase_end = phase['end']
         phase_type = phase['type']
-        phase_event_count = phase['event_count']
         phase_duration = phase_end - phase_start
+        
+        # Determine how many events go in this phase
+        if phase_type == 'attack':
+            phase_event_count = mal_per_phase[attack_phase_idx] if attack_phase_idx < len(mal_per_phase) else 0
+            attack_phase_idx += 1
+        else:  # benign phase
+            phase_event_count = ben_per_phase[benign_phase_idx] if benign_phase_idx < len(ben_per_phase) else 0
+            benign_phase_idx += 1
         
         # Assign timestamps for this phase
         for i in range(phase_event_count):
             if phase_type == 'attack':
                 # Malicious: use sequential ordering
                 if malicious_idx >= len(malicious_events):
-                    # Not enough malicious events; skip
                     continue
                 
                 event = malicious_events[malicious_idx].copy()
                 malicious_idx += 1
                 
                 # Sequential timestamp within phase
-                interval = phase_duration / phase_event_count
-                event['timestamp'] = phase_start + (i * interval) + random.uniform(0, interval * 0.1)
+                interval = phase_duration / phase_event_count if phase_event_count > 0 else phase_duration
+                event['timestamp'] = phase_start + (i * interval) + random.uniform(0, max(interval * 0.1, 0.01))
                 event['label'] = 'Malicious'
                 
             else:  # benign phase
                 # Benign: use scattered random timestamps
                 if benign_idx >= len(benign_events):
-                    # Not enough benign events; skip
                     continue
                 
                 event = benign_events[benign_idx].copy()
@@ -337,6 +367,9 @@ def write_scenario_csv(
         
         # Concatenate metadata columns with existing columns
         df = pd.concat([metadata_df, df], axis=1)
+        
+        # Add ID column (1-indexed)
+        df.insert(0, 'id', range(1, len(df) + 1))
         
         # Write to CSV
         csv_path = output_dir / f"{scenario_name}_{total_events_param}events.csv"
