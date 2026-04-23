@@ -28,8 +28,11 @@ from helper_functions import (
     save_templates,
     get_scenario_by_name,
     IP_RANGES,
-    get_random_internal_host,
+    FIXED_HOST_IPS,
+    get_random_internal_host_excluding_defender,
     get_deterministic_ip_for_host,
+    validate_malicious_event_hosts,
+    is_defender,
 )
 
 
@@ -378,7 +381,7 @@ def _generate_type1_unusual_port(scenario_name, base_row, timestamp, benign_stat
     dport = random.randint(10000, 65535)  # Unusual/rare port
     
     # Source and destination
-    src_host = get_random_internal_host(['Enterprise'])
+    src_host = get_random_internal_host_excluding_defender(['Enterprise'])
     src_subnet = map_subnet(src_host)
     src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
     
@@ -452,7 +455,7 @@ def _generate_type2_high_volume(scenario_name, base_row, timestamp, benign_stats
     dport = {'dns': 53, 'smtp': 25}[benign_service]
     
     # Source and destination
-    src_host = get_random_internal_host(['User', 'Enterprise'])
+    src_host = get_random_internal_host_excluding_defender(['User', 'Enterprise'])
     src_subnet = map_subnet(src_host)
     src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
     
@@ -525,7 +528,7 @@ def _generate_type3_rare_duration(scenario_name, base_row, timestamp, benign_sta
     dport = 22
     
     # Source and destination
-    src_host = get_random_internal_host(['Enterprise'])
+    src_host = get_random_internal_host_excluding_defender(['Enterprise'])
     src_subnet = map_subnet(src_host)
     src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
     

@@ -11,11 +11,15 @@ import hashlib
 from pathlib import Path
 from helper_functions import (
     map_ip_to_host,
+    map_subnet,
     infer_service_from_port,
     SCENARIOS,
+    FIXED_HOST_IPS,
     load_templates,
     save_templates,
-    get_scenario_by_name
+    get_scenario_by_name,
+    validate_malicious_event_hosts,
+    get_deterministic_ip_for_host,
 )
 
 
@@ -237,7 +241,8 @@ def _generate_tier1_events(scenario_name, filtered_df, template, stats, maliciou
                 scenario_name=scenario_name,
                 timestamp=timestamp,
                 phase=phase_name,
-                source='UNSW_actual'
+                source='UNSW_actual',
+                template=template
             )
             all_events.append(event_dict)
     
@@ -308,7 +313,8 @@ def _generate_tier2_events(scenario_name, filtered_df, template, stats, maliciou
                 scenario_name=scenario_name,
                 timestamp=timestamp,
                 phase=phase_name,
-                source=source
+                source=source,
+                template=template
             )
             all_events.append(event_dict)
     
@@ -349,9 +355,10 @@ def _assign_events_to_phases(scenario_name, rows_df, template):
     return events_by_phase
 
 
-def _row_to_event(row, scenario_name, timestamp, phase, source):
+def _row_to_event(row, scenario_name, timestamp, phase, source, template=None):
     """
     Convert UNSW row to malicious event dictionary (preserves ALL 23 columns).
+    Enforces scenario-specific entry_point and target_asset constraints.
     
     Args:
         row (dict or pd.Series): UNSW row
@@ -380,6 +387,37 @@ def _row_to_event(row, scenario_name, timestamp, phase, source):
         dst_host, dst_subnet = map_ip_to_host(dst_ip, scenario_name)
     except:
         dst_host, dst_subnet = 'Enterprise0', 'Subnet 2 (Enterprise)'
+    
+    # ENFORCE ENTRY POINT CONSTRAINTS (from scenario template)
+    if template and phase in ['initial_access', 'progression', 'objective']:
+        entry_host = template.get('entry_point', {}).get('host')
+        target_host = template.get('target_asset', {}).get('host')
+        
+        if phase == 'initial_access' and entry_host:
+            # Initial access MUST originate from entry point
+            src_host = entry_host
+            src_subnet = map_subnet(src_host)
+            src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+        
+        elif phase == 'progression' and entry_host:
+            # Progression is lateral movement FROM entry point
+            src_host = entry_host
+            src_subnet = map_subnet(src_host)
+            src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+        
+        elif phase == 'objective' and target_host:
+            # Objective phase targets the final asset
+            dst_host = target_host
+            dst_subnet = map_subnet(dst_host)
+            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
+        
+        # Validate routing constraints
+        if not validate_malicious_event_hosts(src_host, dst_host, scenario_name):
+            # If path violates routing, adjust to intermediate gateway
+            if 'User' in src_subnet and 'Operational' in dst_subnet:
+                dst_host = 'Enterprise2'
+                dst_subnet = map_subnet(dst_host)
+                dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
     
     # Extract key features
     dport = int(row.get('dport', 0))

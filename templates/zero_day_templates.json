@@ -138,7 +138,7 @@
         "subnet": "Subnet 2 (Enterprise)"
       },
       "target_asset": {
-        "host": "External FTP/SSH Server",
+        "host": "external_ftp_1",
         "subnet": "External"
       },
       "key_attack_behaviors": {
@@ -499,7 +499,7 @@
         "subnet": "Subnet 2 (Enterprise)"
       },
       "target_asset": {
-        "host": "External SCP Server",
+        "host": "external_scp_1",
         "subnet": "External"
       },
       "key_attack_behaviors": {

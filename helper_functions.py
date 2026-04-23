@@ -10,12 +10,28 @@ import random
 # NETWORK TOPOLOGY DEFINITIONS (Shared across all steps)
 # ============================================================
 
-# IP ranges mapped to internal topology
+# IP ranges mapped to internal topology (from network_topology_output.json)
 IP_RANGES = {
-    '192.168.1': ['User0', 'User1', 'User2', 'User3', 'User4'],
-    '192.168.2': ['Enterprise0', 'Enterprise1', 'Enterprise2', 'Defender'],
-    '192.168.3': ['OpHost0', 'OpHost1', 'OpHost2', 'OpServer0'],
-    '10.0.3': ['OpHost0', 'OpHost1', 'OpHost2', 'OpServer0'],
+    '10.0.1': ['User0', 'User1', 'User2', 'User3', 'User4'],        # Subnet 1 (User)
+    '10.0.2': ['Enterprise0', 'Enterprise1', 'Enterprise2', 'Defender'],  # Subnet 2 (Enterprise)
+    '10.0.3': ['OpHost0', 'OpHost1', 'OpHost2', 'OpServer0'],       # Subnet 3 (Operational)
+}
+
+# Fixed IP addresses per topology specification
+FIXED_HOST_IPS = {
+    'User0': '10.0.1.10',
+    'User1': '10.0.1.11',
+    'User2': '10.0.1.12',
+    'User3': '10.0.1.13',
+    'User4': '10.0.1.14',
+    'Enterprise0': '10.0.2.10',
+    'Enterprise1': '10.0.2.11',
+    'Enterprise2': '10.0.2.12',
+    'Defender': '10.0.2.20',
+    'OpHost0': '10.0.3.10',
+    'OpHost1': '10.0.3.11',
+    'OpHost2': '10.0.3.12',
+    'OpServer0': '10.0.3.20',
 }
 
 # Hostname prefix to subnet mapping
@@ -49,6 +65,179 @@ PORT_TO_SERVICE_MAP = {
 
 # Reverse: service to typical port (for inference/validation)
 SERVICE_TO_PORT_MAP = {v: k for k, v in PORT_TO_SERVICE_MAP.items()}
+
+# ============================================================
+# NETWORK ROUTING CONSTRAINTS (from global_constraints.json)
+# ============================================================
+
+def validate_malicious_event_hosts(src_host, dst_host, scenario_name):
+    """
+    Validate that malicious event follows allowed routing paths for a scenario.
+    
+    Constraints (from global_constraints.json):
+      - Rule 1: User1 is ONLY designated entry point from Subnet 1 to Subnet 2
+      - Rule 2: Enterprise2 is ONLY designated gateway from Subnet 2 to Subnet 3
+      - Rule 3: No direct Subnet 1 ↔ Subnet 3 connections
+    
+    Args:
+        src_host (str): Source hostname
+        dst_host (str): Destination hostname
+        scenario_name (str): Scenario name (for context)
+    
+    Returns:
+        bool: True if valid path, False if violates constraints
+    """
+    # Get subnets
+    try:
+        src_subnet = map_subnet(src_host)
+        dst_subnet = map_subnet(dst_host)
+    except ValueError:
+        return False
+    
+    # Same subnet is always allowed
+    if src_subnet == dst_subnet:
+        return True
+    
+    # User (Subnet 1) to Enterprise (Subnet 2): ONLY via User1
+    if 'User' in src_subnet and 'Enterprise' in dst_subnet:
+        return src_host == 'User1'  # Only User1 can cross to Enterprise
+    
+    # Enterprise (Subnet 2) to Operational (Subnet 3): ONLY via Enterprise2
+    if 'Enterprise' in src_subnet and 'Operational' in dst_subnet:
+        return src_host == 'Enterprise2'  # Only Enterprise2 can cross to Operational
+    
+    # No direct User (Subnet 1) to Operational (Subnet 3)
+    if 'User' in src_subnet and 'Operational' in dst_subnet:
+        return False  # Must route through Enterprise2
+    
+    # No direct Operational (Subnet 3) to User (Subnet 1)
+    if 'Operational' in src_subnet and 'User' in dst_subnet:
+        return False  # Must route through Enterprise2
+    
+    # Operational to Enterprise is allowed (responses)
+    if 'Operational' in src_subnet and 'Enterprise' in dst_subnet:
+        return True  # Can return to any Enterprise (response traffic)
+    
+    # Enterprise to User is allowed (responses)
+    if 'Enterprise' in src_subnet and 'User' in dst_subnet:
+        return True  # Can return to User (response traffic)
+    
+    return True  # Default: allow if not explicitly restricted
+
+
+def get_allowed_routing_destinations(src_host, src_subnet):
+    """
+    Get list of allowed destination subnets and hosts for a given source.
+    
+    Args:
+        src_host (str): Source hostname
+        src_subnet (str): Source subnet name
+    
+    Returns:
+        dict: {'allowed_subnets': [...], 'allowed_hosts': [...]}
+    """
+    allowed_hosts = []
+    allowed_subnets = set()
+    
+    # All internal traffic stays within subnet
+    if src_subnet == 'Subnet 1 (User)':
+        allowed_subnets.add('Subnet 1 (User)')
+        allowed_hosts = ['User0', 'User1', 'User2', 'User3', 'User4']
+        
+        # Only User1 can cross to Enterprise
+        if src_host == 'User1':
+            allowed_subnets.add('Subnet 2 (Enterprise)')
+            allowed_hosts.extend(['Enterprise0', 'Enterprise1', 'Enterprise2'])
+    
+    elif src_subnet == 'Subnet 2 (Enterprise)':
+        allowed_subnets.add('Subnet 2 (Enterprise)')
+        allowed_hosts = ['Enterprise0', 'Enterprise1', 'Enterprise2']
+        
+        # Only Enterprise2 can cross to Operational
+        if src_host == 'Enterprise2':
+            allowed_subnets.add('Subnet 3 (Operational)')
+            allowed_hosts.extend(['OpHost0', 'OpHost1', 'OpHost2', 'OpServer0'])
+        
+        # All Enterprise can respond to User
+        allowed_subnets.add('Subnet 1 (User)')
+        allowed_hosts.extend(['User0', 'User1', 'User2', 'User3', 'User4'])
+    
+    elif src_subnet == 'Subnet 3 (Operational)':
+        allowed_subnets.add('Subnet 3 (Operational)')
+        allowed_hosts = ['OpHost0', 'OpHost1', 'OpHost2', 'OpServer0']
+        
+        # All Operational can respond to Enterprise
+        allowed_subnets.add('Subnet 2 (Enterprise)')
+        allowed_hosts.extend(['Enterprise0', 'Enterprise1', 'Enterprise2'])
+    
+    return {
+        'allowed_subnets': list(allowed_subnets),
+        'allowed_hosts': list(set(allowed_hosts)),
+    }
+
+
+def is_defender(hostname):
+    """
+    Check if hostname is Defender (special monitoring system).
+    Defender should NOT be randomly selected as regular destination.
+    
+    Args:
+        hostname (str): Hostname to check
+    
+    Returns:
+        bool: True if Defender, False otherwise
+    """
+    return hostname == 'Defender'
+
+
+def get_random_internal_host_excluding_defender(allowed_prefixes):
+    """
+    Return a random internal hostname from allowed prefixes, EXCLUDING Defender.
+    
+    Args:
+        allowed_prefixes (list): List of hostname prefixes (e.g., ['User', 'Enterprise'])
+    
+    Returns:
+        str: Hostname (e.g., 'User1', 'Enterprise0') or None if no valid hosts
+    """
+    prefix = random.choice(allowed_prefixes)
+    
+    # Get all hosts under this prefix
+    for ip_prefix, hosts in IP_RANGES.items():
+        matching_hosts = [h for h in hosts if h.startswith(prefix) and h != 'Defender']
+        if matching_hosts:
+            return random.choice(matching_hosts)
+    
+    # Fallback
+    return f"{prefix}0" if prefix != 'Defender' else None
+
+
+def get_deterministic_ip_for_host(scenario_name, hostname):
+    """
+    Return deterministic IP address for a hostname within a scenario.
+    Uses fixed IPs from topology, or generates deterministic external IP.
+    
+    Args:
+        scenario_name (str): Scenario name
+        hostname (str): Hostname (e.g., 'User1', 'Enterprise0', 'external_45')
+    
+    Returns:
+        str: IP address
+    """
+    # Check if internal host with fixed IP
+    if hostname in FIXED_HOST_IPS:
+        return FIXED_HOST_IPS[hostname]
+    
+    # External IPs: generate deterministically from hostname hash
+    if hostname.startswith('external_'):
+        hash_seed = f"{scenario_name}:{hostname}"
+        hash_value = int(hashlib.md5(hash_seed.encode()).hexdigest(), 16)
+        octet3 = (hash_value % 256)
+        octet4 = ((hash_value >> 8) % 254) + 1
+        return f"203.0.{octet3}.{octet4}"
+    
+    # Fallback
+    return "10.0.1.1"
 
 
 # ============================================================
@@ -84,14 +273,13 @@ def map_subnet(host):
 
 def map_ip_to_host(ip_address, scenario_name):
     """
-    Deterministically map IP to hostname using MD5(scenario + IP) hash.
+    Deterministically map IP to hostname using fixed topology or MD5 hash.
     
-    This ensures the same IP always maps to the same hostname within a scenario,
-    but different scenarios may map the same IP to different hosts (due to
-    scenario-specific context). External IPs are handled separately.
+    This ensures the same IP always maps to the same hostname within a scenario.
+    Uses fixed IPs from FIXED_HOST_IPS for known hosts, or hash for others.
     
     Args:
-        ip_address (str): IP address (e.g., '192.168.1.50')
+        ip_address (str): IP address (e.g., '10.0.1.11')
         scenario_name (str): Scenario name for deterministic separation
         
     Returns:
@@ -100,13 +288,19 @@ def map_ip_to_host(ip_address, scenario_name):
     Raises:
         ValueError: If IP cannot be mapped to any known range
     """
+    # Reverse lookup: check fixed IPs first
+    for hostname, fixed_ip in FIXED_HOST_IPS.items():
+        if ip_address == fixed_ip:
+            subnet = map_subnet(hostname)
+            return hostname, subnet
+    
     # External IP: extract last octet as identifier
     if not any(ip_address.startswith(pre) for pre in IP_RANGES.keys()):
         last_octet = ip_address.split('.')[-1]
         external_host = f"external_{last_octet}"
         return external_host, "External"
     
-    # Internal IP: find matching prefix
+    # Internal IP: find matching prefix (for dynamic IPs, should not normally occur)
     host_pool = None
     for prefix, hosts in IP_RANGES.items():
         if ip_address.startswith(prefix):

@@ -20,6 +20,11 @@ from helper_functions import (
     save_templates,
     get_scenario_by_name,
     IP_RANGES,
+    FIXED_HOST_IPS,
+    get_allowed_routing_destinations,
+    validate_malicious_event_hosts,
+    is_defender,
+    get_deterministic_ip_for_host,
 )
 
 
@@ -251,32 +256,41 @@ def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, templa
         # Randomly assign source from User or Enterprise subnet
         src_host = _get_random_internal_host(['User', 'Enterprise'])
         src_subnet = map_subnet(src_host)
-        src_ip = _get_deterministic_ip_for_host(scenario_name, src_host)
+        src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
         
-        # Randomly assign destination (internal or external)
+        # Randomly assign destination with 70% intra-subnet preference (realistic traffic)
         use_external = random.choice([True, False])
         
         if use_external:
+            # External traffic: 5-10% of total traffic
             dst_host = f"external_{random.randint(1, 100)}"
             dst_subnet = 'External'
-            dst_ip = f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
+            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
         else:
-            # Internal destination
-            if service_type == 'dns':
-                # DNS queries typically go to enterprise DNS servers
-                dst_host = random.choice(['Enterprise0', 'Enterprise1'])
+            # Internal destination (90-95% of traffic)
+            # 70% stay in same subnet, 30% cross-subnet but to allowed destinations
+            if random.random() < 0.7:
+                # Intra-subnet communication (most common)
+                src_prefix = src_host[0] if src_host[0].isalpha() else 'User'
+                for prefix in ['User', 'Enterprise', 'OpHost', 'OpServer']:
+                    if src_host.startswith(prefix):
+                        src_prefix = prefix
+                        break
+                dst_host = _get_random_internal_host([src_prefix])
             else:
-                dst_host = _get_random_internal_host(['User', 'Enterprise', 'OpHost', 'OpServer'])
+                # Cross-subnet communication (less common, must follow routing rules)
+                allowed_dests = get_allowed_routing_destinations(src_host, src_subnet)
+                if allowed_dests['allowed_hosts']:
+                    dst_host = random.choice(allowed_dests['allowed_hosts'])
+                else:
+                    # Fallback: DNS queries or Enterprise services
+                    if service_type == 'dns':
+                        dst_host = random.choice(['Enterprise0', 'Enterprise1'])
+                    else:
+                        dst_host = 'Enterprise0'
             
             dst_subnet = map_subnet(dst_host)
-            
-            # Validate routing constraint: no direct User ↔ Operational
-            if _violates_routing_constraint(src_subnet, dst_subnet):
-                # Reroute through Enterprise
-                dst_host = random.choice(['Enterprise0', 'Enterprise1'])
-                dst_subnet = map_subnet(dst_host)
-            
-            dst_ip = _get_deterministic_ip_for_host(scenario_name, dst_host)
+            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
         
         # Extract feature values from UNSW row
         duration = row.get('duration', 0.1)
