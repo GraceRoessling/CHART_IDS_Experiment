@@ -73,6 +73,7 @@
             194,
             388,
             443,
+            445,
             5000
           ],
           "_note": "destination ports observed in filtered UNSW data"
@@ -380,7 +381,7 @@
       "max_false_alarm_pct_rationale": "With 7 malicious events out of 30 total, max FA = (30-7)/30 = 77%.",
       "attack_description": "An attacker installs and executes Netcat on a compromised host to open a backdoor listener on a high-numbered port. This allows persistent remote access and command execution. The attacker may subsequently download additional tools or pivot within the network.",
       "entry_point": {
-        "host": "User2",
+        "host": "User1",
         "subnet": "Subnet 1 (User)"
       },
       "target_asset": {
@@ -546,6 +547,7 @@
         "dport": {
           "unique_values": [
             21,
+            22,
             80,
             194,
             5000
