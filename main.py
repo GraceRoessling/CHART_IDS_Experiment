@@ -1,4 +1,4 @@
-"""
+r"""
 IDS Pipeline - Main Entry Point
 
 Simple, parameterized pipeline orchestrator.
