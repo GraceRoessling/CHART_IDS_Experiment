@@ -212,23 +212,37 @@ def get_random_internal_host_excluding_defender(allowed_prefixes):
     return f"{prefix}0" if prefix != 'Defender' else None
 
 
-def get_deterministic_ip_for_host(scenario_name, hostname):
+def get_deterministic_ip_for_host(scenario_name, hostname, network_topology=None):
     """
     Return deterministic IP address for a hostname within a scenario.
-    Uses fixed IPs from topology, or generates deterministic external IP.
+    Uses concrete IPs from network_topology_output.json, or generates deterministic external IP.
+    
+    Priority:
+      1. network_topology parameter (concrete IPs from AWS infrastructure)
+      2. FIXED_HOST_IPS fallback (hardcoded mapping)
+      3. Deterministic hash for external_* hosts
     
     Args:
         scenario_name (str): Scenario name
         hostname (str): Hostname (e.g., 'User1', 'Enterprise0', 'external_45')
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         str: IP address
     """
-    # Check if internal host with fixed IP
+    # PRIORITY 1: Use concrete IP from network_topology if available
+    if network_topology is not None:
+        try:
+            return get_concrete_ip_for_host(hostname, network_topology)
+        except ValueError:
+            # Host not found in topology; fall through to fallback
+            pass
+    
+    # PRIORITY 2: Check if internal host with fixed IP (fallback for when network_topology not provided)
     if hostname in FIXED_HOST_IPS:
         return FIXED_HOST_IPS[hostname]
     
-    # External IPs: generate deterministically from hostname hash
+    # PRIORITY 3: External IPs - generate deterministically from hostname hash
     if hostname.startswith('external_'):
         hash_seed = f"{scenario_name}:{hostname}"
         hash_value = int(hashlib.md5(hash_seed.encode()).hexdigest(), 16)
@@ -236,7 +250,7 @@ def get_deterministic_ip_for_host(scenario_name, hostname):
         octet4 = ((hash_value >> 8) % 254) + 1
         return f"203.0.{octet3}.{octet4}"
     
-    # Fallback
+    # Final fallback (should not reach here if hostname is valid)
     return "10.0.1.1"
 
 
@@ -828,30 +842,6 @@ def get_random_internal_host(allowed_prefixes):
     return f"{prefix}0"
 
 
-def get_deterministic_ip_for_host(scenario_name, hostname):
-    """
-    Return a deterministic IP address for a hostname within a scenario.
-    
-    Args:
-        scenario_name (str): Scenario name
-        hostname (str): Hostname (e.g., 'User1', 'Enterprise0', 'external_45')
-    
-    Returns:
-        str: IP address
-    """
-    if hostname.startswith('external_'):
-        return f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
-    
-    for prefix, hosts in IP_RANGES.items():
-        if hostname in hosts:
-            hash_seed = f"{scenario_name}:{hostname}"
-            hash_value = int(hashlib.md5(hash_seed.encode()).hexdigest(), 16)
-            last_octet = (hash_value % 254) + 1
-            return f"{prefix}.{last_octet}"
-    
-    return "192.168.1.100"
-
-
 def violates_routing_constraint(src_subnet, dst_subnet):
     """
     Check if communication violates routing constraints.
@@ -878,3 +868,237 @@ def violates_routing_constraint(src_subnet, dst_subnet):
         return True
     
     return False
+
+
+# ============================================================
+# AWS NETWORK TOPOLOGY v2 HELPERS (NEW - Phase 2)
+# Extract host-to-IP mappings from network_topology_output.json
+# ============================================================
+
+def get_concrete_ip_for_host(hostname, network_topology):
+    """
+    Get concrete IP address for a hostname from network_topology_output.json.
+    Replaces MD5-based synthetic IP generation.
+    
+    Args:
+        hostname (str): Hostname (e.g., 'User1', 'Enterprise0', 'OpServer0')
+        network_topology (dict): Loaded network_topology_output.json
+    
+    Returns:
+        str: Concrete IP address from topology (e.g., '10.0.1.11')
+        
+    Raises:
+        ValueError: If hostname not found in topology
+    """
+    # Check User subnet IPs
+    if 'user_private_ips' in network_topology:
+        ips = network_topology['user_private_ips'].get('value', {})
+        if hostname in ips:
+            return ips[hostname]
+    
+    # Check Enterprise subnet IPs
+    if 'enterprise_private_ips' in network_topology:
+        ips = network_topology['enterprise_private_ips'].get('value', {})
+        if hostname in ips:
+            return ips[hostname]
+    
+    # Check Operational subnet IPs
+    if 'operational_private_ips' in network_topology:
+        ips = network_topology['operational_private_ips'].get('value', {})
+        if hostname in ips:
+            return ips[hostname]
+    
+    # External hosts: generate deterministically
+    if hostname.startswith('external_'):
+        hash_seed = f"{hostname}"
+        hash_value = int(hashlib.md5(hash_seed.encode()).hexdigest(), 16)
+        octet3 = (hash_value % 256)
+        octet4 = ((hash_value >> 8) % 254) + 1
+        return f"203.0.{octet3}.{octet4}"
+    
+    raise ValueError(f"Hostname '{hostname}' not found in network topology")
+
+
+def get_subnet_cidr_for_host(hostname, network_topology):
+    """
+    Get subnet CIDR block for a hostname using network_topology_output.json.
+    
+    Args:
+        hostname (str): Hostname
+        network_topology (dict): Loaded network_topology_output.json
+    
+    Returns:
+        str: Subnet CIDR block (e.g., '10.0.1.0/24')
+        
+    Raises:
+        ValueError: If hostname not found in topology
+    """
+    # Map hostname to subnet CIDR
+    if hostname.startswith('User'):
+        if 'user_subnet_cidr' in network_topology:
+            return network_topology['user_subnet_cidr'].get('value')
+    
+    if hostname.startswith('Enterprise') or hostname == 'Defender':
+        if 'enterprise_subnet_cidr' in network_topology:
+            return network_topology['enterprise_subnet_cidr'].get('value')
+    
+    if hostname.startswith('OpHost') or hostname.startswith('OpServer'):
+        if 'operational_subnet_cidr' in network_topology:
+            return network_topology['operational_subnet_cidr'].get('value')
+    
+    if hostname.startswith('external_'):
+        return None  # External hosts don't belong to internal subnets
+    
+    raise ValueError(f"Cannot determine subnet CIDR for hostname '{hostname}'")
+
+
+def validate_host_in_topology(hostname, network_topology):
+    """
+    Confirm hostname exists in concrete network topology.
+    
+    Args:
+        hostname (str): Hostname to validate
+        network_topology (dict): Loaded network_topology_output.json
+    
+    Returns:
+        bool: True if hostname is valid in topology
+    """
+    try:
+        get_concrete_ip_for_host(hostname, network_topology)
+        return True
+    except ValueError:
+        return False
+
+
+def validate_ip_in_subnet(ip_address, subnet_cidr):
+    """
+    Check if IP address belongs to subnet using CIDR validation.
+    
+    Args:
+        ip_address (str): IP address (e.g., '10.0.1.15')
+        subnet_cidr (str): Subnet CIDR block (e.g., '10.0.1.0/24')
+    
+    Returns:
+        bool: True if IP is in subnet, False otherwise
+    """
+    if subnet_cidr is None:
+        return False
+    
+    try:
+        import ipaddress
+        ip = ipaddress.ip_address(ip_address)
+        network = ipaddress.ip_network(subnet_cidr, strict=False)
+        return ip in network
+    except (ValueError, AttributeError):
+        return False
+
+
+def validate_routing_path_aws(src_host, dst_host, network_topology):
+    """
+    Enforce AWS routing constraints from network_topology_output.json.
+    
+    Strict routing path from network_topology_output.json:
+      User1 (10.0.1.11) → Enterprise1 (10.0.2.11) → Enterprise2 (10.0.2.12) → OpServer0 (10.0.3.20)
+    
+    AWS Constraints:
+      1. Intra-subnet: All hosts within same subnet can communicate freely
+      2. Cross-subnet: ONLY through designated gateways:
+         - User1 → Enterprise1 (User subnet gateway to Enterprise)
+         - Enterprise1↔Enterprise2 (bidirectional within Enterprise)
+         - Enterprise2 → OpServer0 (Enterprise to Operational gateway)
+         - Response traffic: Enterprise ↔ User, Operational → Enterprise
+      3. Defender: IDS/IPS monitor (cannot be regular event destination)
+      4. External: Any host can communicate with external_* hosts via IGW
+    
+    Args:
+        src_host (str): Source hostname
+        dst_host (str): Destination hostname
+        network_topology (dict): Loaded network_topology_output.json
+    
+    Returns:
+        dict: {'valid': bool, 'reason': str}
+    """
+    # Defender exclusion: Cannot be destination for regular event traffic
+    # Defender is IDS/IPS monitor with VPC visibility, not a routing node
+    if dst_host == 'Defender' and src_host != 'Defender':
+        return {'valid': False, 'reason': 'Defender (IDS/IPS) cannot be regular event destination; reserved for monitoring'}
+    
+    # Same subnet: always allowed (per network_topology_output.json: "All hosts within same subnet can communicate freely")
+    if src_host.startswith('User') and dst_host.startswith('User'):
+        return {'valid': True, 'reason': 'Same subnet (User): intra-subnet communication allowed'}
+    if src_host.startswith('Enterprise') and dst_host.startswith('Enterprise'):
+        if dst_host == 'Defender':
+            return {'valid': False, 'reason': 'Defender is IDS/IPS monitor, not regular event destination'}
+        return {'valid': True, 'reason': 'Same subnet (Enterprise): intra-subnet communication allowed'}
+    if (src_host.startswith('OpHost') or src_host.startswith('OpServer')):
+        if dst_host.startswith('OpHost') or dst_host.startswith('OpServer'):
+            return {'valid': True, 'reason': 'Same subnet (Operational): intra-subnet communication allowed'}
+    
+    # Cross-subnet: STRICT routing constraints per network_topology_output.json
+    # CONSTRAINT 1: User → Enterprise: ONLY User1 → Enterprise1 (designated gateway)
+    if src_host.startswith('User') and dst_host.startswith('Enterprise'):
+        if src_host == 'User1' and dst_host == 'Enterprise1':
+            return {'valid': True, 'reason': 'User1 → Enterprise1 (prescribed attack entry gateway)'}
+        elif src_host != 'User1':
+            return {'valid': False, 'reason': f'Only User1 can cross to Enterprise, not {src_host}'}
+        else:  # src_host == 'User1' but dst_host != 'Enterprise1'
+            return {'valid': False, 'reason': f'User1 can only reach Enterprise1, not {dst_host}'}
+    
+    # CONSTRAINT 2: Enterprise → Operational: ONLY Enterprise2 → OpServer0 (designated gateway)
+    if src_host.startswith('Enterprise') and dst_host.startswith('OpServer'):
+        if src_host == 'Enterprise2' and dst_host == 'OpServer0':
+            return {'valid': True, 'reason': 'Enterprise2 → OpServer0 (prescribed attack gateway)'}
+        elif src_host != 'Enterprise2':
+            return {'valid': False, 'reason': f'Only Enterprise2 can reach Operational, not {src_host}'}
+        else:  # src_host == 'Enterprise2' but dst_host != 'OpServer0'
+            return {'valid': False, 'reason': f'Enterprise2 can only reach OpServer0, not {dst_host}'}
+    
+    # CONSTRAINT 3: Response traffic (allowed per network_topology_output.json)
+    # Enterprise → User (responses)
+    if src_host.startswith('Enterprise') and dst_host.startswith('User'):
+        if src_host == 'Defender':
+            return {'valid': False, 'reason': 'Defender (IDS/IPS) cannot be source for regular events'}
+        return {'valid': True, 'reason': 'Enterprise → User (response traffic)'}
+    
+    # Operational → Enterprise (responses)
+    if (src_host.startswith('OpHost') or src_host.startswith('OpServer')) and dst_host.startswith('Enterprise'):
+        if dst_host == 'Defender':
+            return {'valid': False, 'reason': 'Defender (IDS/IPS) cannot be regular event destination'}
+        return {'valid': True, 'reason': 'Operational → Enterprise (response traffic)'}
+    
+    # CONSTRAINT 4: External hosts (allowed per network_topology_output.json: "All User workstations have outbound internet access via IGW")
+    if src_host.startswith('external_') or dst_host.startswith('external_'):
+        if dst_host.startswith('external_'):
+            return {'valid': True, 'reason': 'External host communication (external traffic)'}
+        if src_host.startswith('external_') and (dst_host.startswith('User') or dst_host.startswith('Enterprise') or dst_host.startswith('OpServer')):
+            return {'valid': True, 'reason': 'External → internal (inbound internet traffic)'}
+    
+    # Default: disallow non-matching cross-subnet paths
+    return {'valid': False, 'reason': f'Cross-subnet path {src_host} → {dst_host} violates AWS topology routing constraints'}
+
+
+def get_all_hosts_from_topology(network_topology):
+    """
+    Extract complete list of all hosts from network_topology_output.json.
+    
+    Args:
+        network_topology (dict): Loaded network_topology_output.json
+    
+    Returns:
+        list: All internal hostnames (User0-4, Enterprise0-2, Defender, OpHost0-2, OpServer0)
+    """
+    all_hosts = []
+    
+    # User hosts
+    if 'user_private_ips' in network_topology:
+        all_hosts.extend(network_topology['user_private_ips'].get('value', {}).keys())
+    
+    # Enterprise hosts
+    if 'enterprise_private_ips' in network_topology:
+        all_hosts.extend(network_topology['enterprise_private_ips'].get('value', {}).keys())
+    
+    # Operational hosts
+    if 'operational_private_ips' in network_topology:
+        all_hosts.extend(network_topology['operational_private_ips'].get('value', {}).keys())
+    
+    return all_hosts

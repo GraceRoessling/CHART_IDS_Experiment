@@ -11,6 +11,7 @@ import step_3
 import step_4
 import step_5
 import step_6
+import step_7
 from pathlib import Path
 from helper_functions import initialize_working_templates
 
@@ -282,29 +283,50 @@ def main():
 
 
     # ============================================================
-    # STEP 0: GLOBAL CONSTRAINTS
+    # STEP 0: GLOBAL CONSTRAINTS + AWS NETWORK TOPOLOGY
     # Define experiment rules (event counts, label ratios, topology, time window)
     # Store all shared configuration parameters for downstream steps
-    # Reference: global_constraints.json (pre-populated with constraints)
+    # References:
+    #   - global_constraints_v2.json (event generation rules + routing constraints)
+    #   - network_topology_output.json (AWS infrastructure + concrete IPs)
     # ============================================================
     
-    global_constraints_path = Path("templates/global_constraints.json")
+    global_constraints_path = Path("templates/global_constraints_v2.json")
+    network_topology_path = Path("templates/network_topology_output.json")
     
-    # VALIDATION: Verify global_constraints.json exists and is well-formed
-    if not global_constraints_path.exists():
-        raise FileNotFoundError(f"Global constraints file not found: {global_constraints_path}")
+    # VALIDATION: Verify both files exist and are well-formed
+    for config_file in [global_constraints_path, network_topology_path]:
+        if not config_file.exists():
+            raise FileNotFoundError(f"Required config file not found: {config_file}")
     
-    print(f" Global constraints file found: {global_constraints_path}")
+    print(f" Global constraints file (v2) found: {global_constraints_path}")
+    print(f" Network topology file found: {network_topology_path}")
     
-    # Note: global_constraints.json contains:
+    # Load and validate JSON files
+    try:
+        with open(global_constraints_path, 'r') as f:
+            global_constraints = json.load(f)
+        with open(network_topology_path, 'r') as f:
+            network_topology = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"JSON parse error in config files: {e}")
+    
+    # Note: global_constraints_v2.json contains:
     #   - label_distribution (Malicious 10-11, Benign 15, False Alarm 4-5)
-    #   - network_topology (3 subnets, 15 hosts total, routing rules)
+    #   - network_topology_reference (delegates to network_topology_output.json for concrete data)
     #   - unsw_grounding_principles (UNSW as template library, not sequences)
     #   - tiered_synthesis_framework (TIER 1/2/3 based on UNSW row count)
     #   - false_alarm_taxonomy (3 types: unusual_port, high_volume, rare_duration)
     #   - temporal_architecture (5 phases over 1800s observation window)
     #   - output_schema (23 columns: 21 schema + 2 tracking)
     #   - validation_checkpoints (15 critical sanity checks)
+    #
+    # network_topology_output.json contains:
+    #   - vpc_id, vpc_cidr (AWS VPC identifiers)
+    #   - subnet definitions with CIDR blocks (10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24)
+    #   - concrete host-to-IP mappings (User0-4, Enterprise0-2, Defender, OpHost0-2, OpServer0)
+    #   - routing_paths (attack path: User1→Enterprise1→Enterprise2→OpServer0)
+    #   - gateway info (User1 is entry point, Defender monitors all)
 
 
     # ============================================================
@@ -405,6 +427,7 @@ def main():
             str(output_transformed_csv),
             str(working_templates_path),
             str(global_constraints_path),
+            network_topology=network_topology,
             output_report_path="step_2_summary.txt"
         )
         
@@ -430,7 +453,7 @@ def main():
     # CONFIG FILE DEPENDENCIES:
     #   - templates_path (zero_day_templates.json):
     #     * Provides scenario-specific malicious_count (e.g. 11 for WannaCry, 9 for Data_Theft)
-    #   - global_constraints_path (global_constraints.json):
+    #   - global_constraints_path (global_constraints_v2.json):
     #     * Provides temporal_architecture (phases for timestamp assignment: 300-900s)
     #     * Provides network_topology (for host assignment validation)
     #     * Provides tiered_synthesis_framework (TIER 1/2/3 fallback rules)
@@ -442,6 +465,7 @@ def main():
             str(output_transformed_csv),
             str(working_templates_path),
             str(global_constraints_path),
+            network_topology=network_topology,
             malicious_count_per_scenario=malicious_count_per_scenario,
             random_seed=42
         )
@@ -467,7 +491,7 @@ def main():
     #   - templates_path (zero_day_templates.json):
     #     * Provides scenario-specific benign_count (derived from total - malicious - fa)
     #     * Provides feature_constraints for realistic traffic generation
-    #   - global_constraints_path (global_constraints.json):
+    #   - global_constraints_path (global_constraints_v2.json):
     #     * Provides network_topology (enforces routing constraints: no direct User ↔ Operational)
     #     * Provides output_schema (column names and validation)
     # ============================================================
@@ -477,6 +501,7 @@ def main():
         str(output_transformed_csv),
         str(working_templates_path),
         str(global_constraints_path),
+        network_topology=network_topology,
         benign_count_per_scenario=benign_count_per_scenario,
         random_seed=42
     )
@@ -498,7 +523,7 @@ def main():
     #   - templates_path (zero_day_templates.json):
     #     * Provides scenario-specific false_alarm_count (parameterized value)
     #     * Provides feature_constraints for realistic anomaly injection
-    #   - global_constraints_path (global_constraints.json):
+    #   - global_constraints_path (global_constraints_v2.json):
     #     * Provides false_alarm_taxonomy (3 types: unusual_port, high_volume, rare_duration)
     #     * Provides temporal_architecture (isolation zones: 600-700s, 1200-1300s, 1400-1500s)
     #     * Provides network_topology (enforces valid host/subnet assignments)
@@ -509,6 +534,7 @@ def main():
         str(output_transformed_csv),
         str(working_templates_path),
         str(global_constraints_path),
+        network_topology=network_topology,
         false_alarm_count_per_scenario=false_alarm_count_per_scenario,
         fa_type_ratio_mode=fa_type_ratio_mode,
         random_seed=42
@@ -531,7 +557,7 @@ def main():
     #   - templates_path (zero_day_templates.json):
     #     * Provides all pre-computed event counts (malicious, benign, false_alarm)
     #     * Provides scenario-specific metadata for validation
-    #   - global_constraints_path (global_constraints.json):
+    #   - global_constraints_path (global_constraints_v2.json):
     #     * Provides temporal_architecture (phase structure for 1800s window)
     #     * Provides output_schema (final column names and format)
     #     * Provides validation_checkpoints (sanity check rules)
@@ -541,6 +567,7 @@ def main():
     step6_result = step_6.assemble_30_events_step_6(
         str(working_templates_path),
         str(global_constraints_path),
+        network_topology=network_topology,
         output_dir=str(output_dir),
         malicious_count_per_scenario=malicious_count_per_scenario,
         benign_count_per_scenario=benign_count_per_scenario,
@@ -564,17 +591,46 @@ def main():
 
 
     # ============================================================
+    # STEP 7: AWS NETWORK TOPOLOGY VALIDATION
+    # Validate all generated IDS tables against the AWS network topology
+    # defined in network_topology_output.json
+    # ============================================================
+    
+    print(f"\nRunning Step 7: validating AWS network topology constraints...")
+    step7_result = step_7.validate_topology_step_7(
+        str(output_dir),
+        str(network_topology_path)
+    )
+    
+    if not step7_result['success']:
+        print(f"\n{'='*80}")
+        print(f"VALIDATION ERRORS DETECTED")
+        print(f"{'='*80}")
+        print(f"\nTotal errors: {step7_result['total_errors']}")
+        print(f"\nDetailed error report:")
+        for error in step7_result['all_errors']:
+            print(error)
+        print(f"\n{'='*80}")
+        raise ValueError(
+            f"Step 7 validation failed with {step7_result['total_errors']} error(s). "
+            f"Review error messages above for constraint violations."
+        )
+    else:
+        print(f"\n✓ Step 7 validation PASSED: All AWS topology constraints satisfied.")
+
+    # ============================================================
     # PIPELINE FLOW
-    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6
+    # Run steps in order: Pre-Step -> 0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
     # ============================================================
     print("\n" + "="*80)
-    print(" PIPELINE COMPLETE: PRE-STEP THROUGH STEP 6")
+    print(" PIPELINE COMPLETE: PRE-STEP THROUGH STEP 7")
     print("="*80)
     print(f"\nFinal outputs in {output_dir}/ folder:")
     for scenario in step6_result['csv_paths'].keys():
         basename = Path(step6_result['csv_paths'][scenario]).name
         print(f"  [OK] {basename}")
-    print(f"\nSummary report: {output_dir}/step_6_summary.txt")
+    print(f"\nValidation report: Step 7 AWS topology validation PASSED")
+    print(f"Summary report: {output_dir}/step_6_summary.txt")
 
 
 if __name__ == "__main__":

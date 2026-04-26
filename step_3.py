@@ -75,6 +75,7 @@ def generate_malicious_events_step_3(
     transformed_csv_path,
     templates_path,
     global_constraints_path,
+    network_topology=None,
     malicious_count_per_scenario=None,
     random_seed=42,
     output_debug=False
@@ -85,7 +86,8 @@ def generate_malicious_events_step_3(
     Args:
         transformed_csv_path (str): Path to UNSW_NB15_transformed.csv
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints.json
+        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         malicious_count_per_scenario (dict): Map of scenario_name -> malicious_count
                                              If None, derives from templates (backwards compatible)
         random_seed (int): Seed for reproducibility
@@ -159,7 +161,8 @@ def generate_malicious_events_step_3(
                         scenario_df,
                         scenario_template,
                         step2_stats,
-                        malicious_count=mal_count
+                        malicious_count=mal_count,
+                        network_topology=network_topology
                     )
                 else:
                     events = _generate_tier2_events(
@@ -167,7 +170,8 @@ def generate_malicious_events_step_3(
                         scenario_df,
                         scenario_template,
                         step2_stats,
-                        malicious_count=mal_count
+                        malicious_count=mal_count,
+                        network_topology=network_topology
                     )
                 
                 malicious_events_per_scenario[scenario_name] = events
@@ -200,7 +204,7 @@ def generate_malicious_events_step_3(
         }
 
 
-def _generate_tier1_events(scenario_name, filtered_df, template, stats, malicious_count=11):
+def _generate_tier1_events(scenario_name, filtered_df, template, stats, malicious_count=11, network_topology=None):
     """
     TIER 1 (≥10 UNSW rows): Sample real events from filtered UNSW.
     
@@ -210,6 +214,7 @@ def _generate_tier1_events(scenario_name, filtered_df, template, stats, maliciou
         template (dict): Scenario template with entry_point, target_asset
         stats (dict): Feature statistics from Step 2
         malicious_count (int): Number of malicious events to generate
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         list: Malicious event dictionaries
@@ -225,7 +230,7 @@ def _generate_tier1_events(scenario_name, filtered_df, template, stats, maliciou
     sampled_df = sampled_df.reset_index(drop=True)
     
     # Assign to phases
-    events_by_phase = _assign_events_to_phases(scenario_name, sampled_df, template)
+    events_by_phase = _assign_events_to_phases(scenario_name, sampled_df, template, network_topology=network_topology)
     
     # Order within phases and generate timestamps
     all_events = []
@@ -242,7 +247,8 @@ def _generate_tier1_events(scenario_name, filtered_df, template, stats, maliciou
                 timestamp=timestamp,
                 phase=phase_name,
                 source='UNSW_actual',
-                template=template
+                template=template,
+                network_topology=network_topology
             )
             all_events.append(event_dict)
     
@@ -252,16 +258,17 @@ def _generate_tier1_events(scenario_name, filtered_df, template, stats, maliciou
     return all_events
 
 
-def _generate_tier2_events(scenario_name, filtered_df, template, stats, malicious_count=11):
+def _generate_tier2_events(scenario_name, filtered_df, template, stats, malicious_count=11, network_topology=None):
     """
-    TIER 2 (5-9 UNSW rows): Keep actual rows + add parameterized variations.
+    TIER 2 (<10 UNSW rows): Use available data + parameterized variations.
     
     Args:
         scenario_name (str): Scenario name
-        filtered_df (pd.DataFrame): Filtered UNSW rows for this scenario
+        filtered_df (pd.DataFrame): Limited UNSW rows for this scenario
         template (dict): Scenario template
         stats (dict): Feature statistics from Step 2
-        malicious_count (int): Total number of malicious events to generate
+        malicious_count (int): Number of malicious events to generate
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         list: Malicious event dictionaries (mix of actual + parameterized)
@@ -296,7 +303,7 @@ def _generate_tier2_events(scenario_name, filtered_df, template, stats, maliciou
     )
     
     # Assign to phases and order
-    events_by_phase = _assign_events_to_phases(scenario_name, combined_df, template)
+    events_by_phase = _assign_events_to_phases(scenario_name, combined_df, template, network_topology=network_topology)
     
     all_events = []
     for phase_name, events_in_phase in events_by_phase.items():
@@ -314,7 +321,8 @@ def _generate_tier2_events(scenario_name, filtered_df, template, stats, maliciou
                 timestamp=timestamp,
                 phase=phase_name,
                 source=source,
-                template=template
+                template=template,
+                network_topology=network_topology
             )
             all_events.append(event_dict)
     
@@ -323,7 +331,7 @@ def _generate_tier2_events(scenario_name, filtered_df, template, stats, maliciou
     return all_events
 
 
-def _assign_events_to_phases(scenario_name, rows_df, template):
+def _assign_events_to_phases(scenario_name, rows_df, template, network_topology=None):
     """
     Assign UNSW rows to attack phases based on scenario-specific logic.
     
@@ -331,6 +339,7 @@ def _assign_events_to_phases(scenario_name, rows_df, template):
         scenario_name (str): Scenario name
         rows_df (pd.DataFrame): UNSW rows to assign
         template (dict): Scenario template
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         dict: {phase_name: [list of rows for that phase]}
@@ -355,10 +364,11 @@ def _assign_events_to_phases(scenario_name, rows_df, template):
     return events_by_phase
 
 
-def _row_to_event(row, scenario_name, timestamp, phase, source, template=None):
+def _row_to_event(row, scenario_name, timestamp, phase, source, template=None, network_topology=None):
     """
     Convert UNSW row to malicious event dictionary (preserves ALL 23 columns).
     Enforces scenario-specific entry_point and target_asset constraints.
+    Uses concrete IPs from network_topology when available.
     
     Args:
         row (dict or pd.Series): UNSW row
@@ -366,6 +376,8 @@ def _row_to_event(row, scenario_name, timestamp, phase, source, template=None):
         timestamp (float): Event timestamp in seconds
         phase (str): Attack phase name
         source (str): 'UNSW_actual' or 'UNSW_parameterized'
+        template (dict, optional): Scenario template
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         dict: Event dictionary with all 23 required columns
@@ -397,19 +409,19 @@ def _row_to_event(row, scenario_name, timestamp, phase, source, template=None):
             # Initial access MUST originate from entry point
             src_host = entry_host
             src_subnet = map_subnet(src_host)
-            src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+            src_ip = get_deterministic_ip_for_host(scenario_name, src_host, network_topology=network_topology)
         
         elif phase == 'progression' and entry_host:
             # Progression is lateral movement FROM entry point
             src_host = entry_host
             src_subnet = map_subnet(src_host)
-            src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+            src_ip = get_deterministic_ip_for_host(scenario_name, src_host, network_topology=network_topology)
         
         elif phase == 'objective' and target_host:
             # Objective phase targets the final asset
             dst_host = target_host
             dst_subnet = map_subnet(dst_host)
-            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
+            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host, network_topology=network_topology)
         
         # Validate routing constraints
         if not validate_malicious_event_hosts(src_host, dst_host, scenario_name):
@@ -417,7 +429,7 @@ def _row_to_event(row, scenario_name, timestamp, phase, source, template=None):
             if 'User' in src_subnet and 'Operational' in dst_subnet:
                 dst_host = 'Enterprise2'
                 dst_subnet = map_subnet(dst_host)
-                dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
+                dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host, network_topology=network_topology)
     
     # Extract key features
     dport = int(row.get('dport', 0))

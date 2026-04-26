@@ -97,6 +97,7 @@ def generate_false_alarms_step_5(
     transformed_csv_path,
     templates_path,
     global_constraints_path,
+    network_topology=None,
     false_alarm_count_per_scenario=None,
     fa_type_ratio_mode="balanced",
     random_seed=42,
@@ -108,7 +109,8 @@ def generate_false_alarms_step_5(
     Args:
         transformed_csv_path (str): Path to UNSW_NB15_transformed.csv
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints.json
+        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         false_alarm_count_per_scenario (dict): Map of scenario_name -> false_alarm_count
                                                If None, defaults to 5 for all scenarios
         fa_type_ratio_mode (str): Distribution mode for false alarm types
@@ -190,7 +192,8 @@ def generate_false_alarms_step_5(
                     global_constraints,
                     false_alarm_count=fa_count,
                     fa_type_ratio_mode=fa_type_ratio_mode,
-                    false_alarm_types=false_alarm_types
+                    false_alarm_types=false_alarm_types,
+                    network_topology=network_topology
                 )
                 
                 false_alarm_events_per_scenario[scenario_name] = events
@@ -254,7 +257,7 @@ def _compute_benign_stats(benign_df):
     return stats
 
 
-def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_stats, template, constraints, false_alarm_count=5, fa_type_ratio_mode="balanced", false_alarm_types=None):
+def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_stats, template, constraints, false_alarm_count=5, fa_type_ratio_mode="balanced", false_alarm_types=None, network_topology=None):
     """
     Generate false alarm events for a single scenario.
     
@@ -265,6 +268,7 @@ def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_
     - Type 3: Rare duration + benign service (high duration, otherwise benign features)
     - All events marked as attack_cat='Normal', label='False Alarm'
     - Spread timestamps across [0, 1800] seconds
+    - All IPs use concrete topology from network_topology_output.json
     
     Args:
         scenario_name (str): Scenario name
@@ -275,6 +279,7 @@ def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_
         false_alarm_count (int): Total number of false alarm events to generate (default: 5)
         fa_type_ratio_mode (str): Distribution mode for types. Default: "balanced" (40:40:20)
         false_alarm_types (dict): False alarm types config (from JSON). If None, uses defaults.
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         list: False alarm event dictionaries (may be empty if false_alarm_count=0)
@@ -328,7 +333,7 @@ def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_
         if event_idx < len(sampled_df):
             row = sampled_df.iloc[event_idx]
             event = _generate_type1_unusual_port(
-                scenario_name, row, timestamps[event_idx], benign_stats
+                scenario_name, row, timestamps[event_idx], benign_stats, network_topology=network_topology
             )
             events.append(event)
             event_idx += 1
@@ -339,7 +344,7 @@ def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_
         if event_idx < len(sampled_df):
             row = sampled_df.iloc[event_idx]
             event = _generate_type2_high_volume(
-                scenario_name, row, timestamps[event_idx], benign_stats
+                scenario_name, row, timestamps[event_idx], benign_stats, network_topology=network_topology
             )
             events.append(event)
             event_idx += 1
@@ -350,7 +355,7 @@ def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_
         if event_idx < len(sampled_df):
             row = sampled_df.iloc[event_idx]
             event = _generate_type3_rare_duration(
-                scenario_name, row, timestamps[event_idx], benign_stats
+                scenario_name, row, timestamps[event_idx], benign_stats, network_topology=network_topology
             )
             events.append(event)
             event_idx += 1
@@ -358,7 +363,7 @@ def _generate_false_alarms_for_scenario(scenario_name, pooled_benign_df, benign_
     return events
 
 
-def _generate_type1_unusual_port(scenario_name, base_row, timestamp, benign_stats):
+def _generate_type1_unusual_port(scenario_name, base_row, timestamp, benign_stats, network_topology=None):
     """
     Generate Type 1 false alarm: Unusual port + benign service.
     
@@ -369,6 +374,7 @@ def _generate_type1_unusual_port(scenario_name, base_row, timestamp, benign_stat
         base_row (pd.Series): UNSW row used as template
         timestamp (float): Timestamp [0, 1800]
         benign_stats (dict): Benign statistics
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         dict: Event dictionary
@@ -383,11 +389,11 @@ def _generate_type1_unusual_port(scenario_name, base_row, timestamp, benign_stat
     # Source and destination
     src_host = get_random_internal_host_excluding_defender(['Enterprise'])
     src_subnet = map_subnet(src_host)
-    src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+    src_ip = get_deterministic_ip_for_host(scenario_name, src_host, network_topology=network_topology)
     
     dst_host = f"external_{random.randint(1, 100)}"
     dst_subnet = 'External'
-    dst_ip = f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
+    dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host, network_topology=network_topology)
     
     # Features from UNSW template
     duration = base_row.get('duration', 0.5)
@@ -434,17 +440,18 @@ def _generate_type1_unusual_port(scenario_name, base_row, timestamp, benign_stat
     return event
 
 
-def _generate_type2_high_volume(scenario_name, base_row, timestamp, benign_stats):
+def _generate_type2_high_volume(scenario_name, base_row, timestamp, benign_stats, network_topology=None):
     """
     Generate Type 2 false alarm: High volume + benign service.
     
-    Anomaly: Very large data transfer on benign service port.
+    Anomaly: Much higher than normal bytes (2-5x 90th percentile), otherwise benign.
     
     Args:
         scenario_name (str): Scenario name
         base_row (pd.Series): UNSW row used as template
         timestamp (float): Timestamp [0, 1800]
         benign_stats (dict): Benign statistics
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         dict: Event dictionary
@@ -457,11 +464,11 @@ def _generate_type2_high_volume(scenario_name, base_row, timestamp, benign_stats
     # Source and destination
     src_host = get_random_internal_host_excluding_defender(['User', 'Enterprise'])
     src_subnet = map_subnet(src_host)
-    src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+    src_ip = get_deterministic_ip_for_host(scenario_name, src_host, network_topology=network_topology)
     
     dst_host = f"external_{random.randint(1, 100)}"
     dst_subnet = 'External'
-    dst_ip = f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
+    dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host, network_topology=network_topology)
     
     # Features: ANOMALOUS bytes (high volume), normal duration
     duration = base_row.get('duration', 5.0)
@@ -507,17 +514,18 @@ def _generate_type2_high_volume(scenario_name, base_row, timestamp, benign_stats
     return event
 
 
-def _generate_type3_rare_duration(scenario_name, base_row, timestamp, benign_stats):
+def _generate_type3_rare_duration(scenario_name, base_row, timestamp, benign_stats, network_topology=None):
     """
     Generate Type 3 false alarm: Rare duration + benign service.
     
-    Anomaly: Unusually long/short duration for benign service.
+    Anomaly: Much longer than normal duration (3-10x 90th percentile), otherwise benign.
     
     Args:
         scenario_name (str): Scenario name
         base_row (pd.Series): UNSW row used as template
         timestamp (float): Timestamp [0, 1800]
         benign_stats (dict): Benign statistics
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         dict: Event dictionary
@@ -530,11 +538,11 @@ def _generate_type3_rare_duration(scenario_name, base_row, timestamp, benign_sta
     # Source and destination
     src_host = get_random_internal_host_excluding_defender(['Enterprise'])
     src_subnet = map_subnet(src_host)
-    src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+    src_ip = get_deterministic_ip_for_host(scenario_name, src_host, network_topology=network_topology)
     
     dst_host = f"external_{random.randint(1, 100)}"
     dst_subnet = 'External'
-    dst_ip = f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
+    dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host, network_topology=network_topology)
     
     # Features: ANOMALOUS duration (very long), normal bytes
     duration = benign_stats['duration_90th'] * random.uniform(3, 10)  # 3-10x the high percentile

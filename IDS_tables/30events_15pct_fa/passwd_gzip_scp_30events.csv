@@ -1,31 +1,31 @@
 id,_total_events_param,_false_alarm_pct_param,_malicious_count_param,_benign_count_param,_false_alarm_count_param,timestamp,src_host,dst_host,src_subnet,dst_subnet,proto,sport,dport,service,duration,bytes,packets,sttl,dttl,state,sloss,dloss,ct_src_dport_ltm,ct_dst_src_ltm,attack_cat,label,_unsw_row_id,scenario_name,_source,phase
-1,30,0.15,7,19,4,7.50322656680008,Enterprise1,external_59,Subnet 2 (Enterprise),External,tcp,2510,3389,rdp,30.0,5000,50,31,29,FIN,30,32,1,3,Normal,Benign,34934,passwd_gzip_scp,UNSW_benign,
-2,30,0.15,7,19,4,8.939165831421104,Enterprise1,external_32,Subnet 2 (Enterprise),External,tcp,25763,80,http,0.5,500,5,31,29,CON,0,0,1,2,Normal,Benign,1013,passwd_gzip_scp,UNSW_benign,
-3,30,0.15,7,19,4,26.081649788824844,Enterprise2,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,58487,80,http,0.5,500,5,31,29,CON,0,0,3,2,Normal,Benign,39739,passwd_gzip_scp,UNSW_benign,
-4,30,0.15,7,19,4,66.96322144464682,Enterprise2,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,40683,3389,rdp,30.0,5000,50,31,29,FIN,3,5,2,1,Normal,Benign,36108,passwd_gzip_scp,UNSW_benign,
-5,30,0.15,7,19,4,82.50879551073578,Enterprise1,User4,Subnet 2 (Enterprise),Subnet 1 (User),tcp,50915,53,dns,0.291121,50,1,31,29,FIN,7,7,1,3,Normal,Benign,38110,passwd_gzip_scp,UNSW_benign,
-6,30,0.15,7,19,4,126.57654590558113,Enterprise0,external_57,Subnet 2 (Enterprise),External,tcp,22344,22,ssh_admin,10.0,200,10,31,29,FIN,7,24,1,2,Normal,Benign,31855,passwd_gzip_scp,UNSW_benign,
-7,30,0.15,7,19,4,191.82803953736513,User0,User1,Subnet 1 (User),Subnet 1 (User),tcp,49946,25,smtp,17.284084,1000,5,31,29,FIN,2,2,3,5,Normal,Benign,535,passwd_gzip_scp,UNSW_benign,
-8,30,0.15,7,19,4,203.00984622687338,User1,Enterprise2,Subnet 1 (User),Subnet 2 (Enterprise),tcp,48532,3389,rdp,30.0,5000,50,31,29,CON,0,0,1,2,Normal,Benign,311,passwd_gzip_scp,UNSW_benign,
-9,30,0.15,7,19,4,220.94136424920373,User3,external_41,Subnet 1 (User),External,tcp,16658,3389,rdp,30.0,5000,50,254,0,INT,0,0,2,3,Normal,Benign,46428,passwd_gzip_scp,UNSW_benign,
-10,30,0.15,7,19,4,267.6538703114536,User0,User4,Subnet 1 (User),Subnet 1 (User),tcp,61715,3389,rdp,30.0,5000,50,31,29,CON,0,0,1,3,Normal,Benign,20650,passwd_gzip_scp,UNSW_benign,
-11,30,0.15,7,19,4,302.186379748036,Enterprise2,external_OpHost0,Subnet 2 (Enterprise),External,tcp,56774,5000,-,1.086169,918,18,254,252,FIN,2,1,1,1,Reconnaissance,Malicious,111771,passwd_gzip_scp,UNSW_actual,initial_access
-12,30,0.15,7,19,4,405.0535528810336,Enterprise2,external_external_209,Subnet 2 (Enterprise),External,tcp,15535,5000,-,0.018036,3184,34,31,29,FIN,4,4,6,7,Normal,Malicious,8368,passwd_gzip_scp,UNSW_actual,progression
-13,30,0.15,7,19,4,500.26535969683863,Enterprise2,external_OpHost2,Subnet 2 (Enterprise),External,udp,4744,53,dns,9e-06,114,2,254,0,INT,0,0,41,47,Generic,Malicious,141696,passwd_gzip_scp,UNSW_actual,progression
-14,30,0.15,7,19,4,602.9825647602997,Enterprise2,external_OpHost2,Subnet 2 (Enterprise),External,vrrp,63438,5000,-,2e-06,200,2,254,0,INT,0,0,2,13,DoS,Malicious,87092,passwd_gzip_scp,UNSW_actual,progression
-15,30,0.15,7,19,4,609.2745843380148,Enterprise1,external_3,Subnet 2 (Enterprise),External,tcp,24812,10037,smtp,0.37483,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
-16,30,0.15,7,19,4,759.7482665666928,Enterprise2,external_Enterprise1,Subnet 2 (Enterprise),External,tcp,10621,25,smtp,2.294188,50371,78,62,252,FIN,24,8,1,1,Exploits,Malicious,60108,passwd_gzip_scp,UNSW_actual,progression
-17,30,0.15,7,19,4,908.1741222090483,external_external_107,external_scp_1,External,External,ospf,56724,5000,-,51.011105,18480,42,254,0,INT,0,0,1,1,Exploits,Malicious,76680,passwd_gzip_scp,UNSW_actual,objective
-18,30,0.15,7,19,4,1053.3066093306104,external_Enterprise2,external_scp_1,External,External,udp,39185,53,dns,3e-06,114,2,254,0,INT,0,0,34,34,Generic,Malicious,131973,passwd_gzip_scp,UNSW_actual,objective
-19,30,0.15,7,19,4,1203.8992558068367,Enterprise1,external_31,Subnet 2 (Enterprise),External,tcp,52574,21,ftp,5.0,100000,50,254,252,FIN,2,1,1,4,Normal,Benign,43724,passwd_gzip_scp,UNSW_benign,
-20,30,0.15,7,19,4,1209.6716376833465,Enterprise0,external_73,Subnet 2 (Enterprise),External,tcp,48990,25692,http,0.1,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
-21,30,0.15,7,19,4,1293.2876998870688,Enterprise1,User3,Subnet 2 (Enterprise),Subnet 1 (User),tcp,4446,22,ssh_admin,10.0,200,10,31,29,FIN,6,6,1,8,Normal,Benign,33713,passwd_gzip_scp,UNSW_benign,
-22,30,0.15,7,19,4,1401.9567270675761,User1,User4,Subnet 1 (User),Subnet 1 (User),tcp,53654,25,smtp,30.0,1000,5,0,0,INT,0,0,2,2,Normal,Benign,111246,passwd_gzip_scp,UNSW_benign,
-23,30,0.15,7,19,4,1404.1503099107952,User0,User1,Subnet 1 (User),Subnet 1 (User),tcp,16241,21,ftp,5.0,100000,50,31,29,FIN,7,7,1,1,Normal,Benign,12121,passwd_gzip_scp,UNSW_benign,
-24,30,0.15,7,19,4,1460.3726031366891,Enterprise2,external_78,Subnet 2 (Enterprise),External,tcp,36367,53,dns,1.0,141388,282,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
-25,30,0.15,7,19,4,1484.749436634746,User4,external_99,Subnet 1 (User),External,tcp,63076,25,smtp,1.0,213486,426,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
-26,30,0.15,7,19,4,1553.5594103255453,Enterprise2,external_30,Subnet 2 (Enterprise),External,tcp,41081,80,http,0.5,500,5,31,29,CON,0,0,1,7,Normal,Benign,39778,passwd_gzip_scp,UNSW_benign,
-27,30,0.15,7,19,4,1618.883636992936,User4,User0,Subnet 1 (User),Subnet 1 (User),udp,51740,53,dns,0.017298,50,1,31,29,FIN,4,4,6,13,Normal,Benign,2651,passwd_gzip_scp,UNSW_benign,
-28,30,0.15,7,19,4,1683.4915510996848,Enterprise0,external_78,Subnet 2 (Enterprise),External,tcp,25637,22,ssh_admin,10.0,200,10,31,29,FIN,3,5,1,1,Normal,Benign,25332,passwd_gzip_scp,UNSW_benign,
-29,30,0.15,7,19,4,1685.658274006696,User3,User4,Subnet 1 (User),Subnet 1 (User),tcp,26967,21,ftp,5.807123,100000,50,31,29,FIN,2,370,2,1,Normal,Benign,3962,passwd_gzip_scp,UNSW_benign,
-30,30,0.15,7,19,4,1774.3278433240687,Enterprise0,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,44833,53,dns,0.03596,50,1,31,29,FIN,7,36,1,3,Normal,Benign,13093,passwd_gzip_scp,UNSW_benign,
+1,30,0.15,7,19,4,7.50322656680008,Enterprise2,external_59,Subnet 2 (Enterprise),External,tcp,41226,21,ftp,5.0,100000,50,31,29,FIN,1,4,1,4,Normal,Benign,5110,passwd_gzip_scp,UNSW_benign,
+2,30,0.15,7,19,4,8.939165831421104,Enterprise2,Enterprise0,Subnet 2 (Enterprise),Subnet 2 (Enterprise),udp,31989,53,dns,0.01,50,1,31,29,CON,0,0,1,1,Normal,Benign,30274,passwd_gzip_scp,UNSW_benign,
+3,30,0.15,7,19,4,26.081649788824844,Enterprise2,Enterprise2,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,36993,22,ssh_admin,10.0,200,10,31,29,FIN,4,1,1,3,Normal,Benign,6617,passwd_gzip_scp,UNSW_benign,
+4,30,0.15,7,19,4,66.96322144464682,Enterprise2,external_37,Subnet 2 (Enterprise),External,tcp,32671,21,ftp,5.0,100000,50,31,29,CON,0,0,1,3,Normal,Benign,7649,passwd_gzip_scp,UNSW_benign,
+5,30,0.15,7,19,4,82.50879551073578,Enterprise0,external_67,Subnet 2 (Enterprise),External,tcp,31460,21,ftp,5.0,100000,50,254,252,FIN,5,3,1,4,Normal,Benign,65752,passwd_gzip_scp,UNSW_benign,
+6,30,0.15,7,19,4,126.57654590558113,Enterprise2,Enterprise0,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,12210,25,smtp,1.0,1000,5,31,29,FIN,7,24,1,4,Normal,Benign,35431,passwd_gzip_scp,UNSW_benign,
+7,30,0.15,7,19,4,191.82803953736513,Enterprise0,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,23172,22,ssh_admin,10.0,200,10,31,29,CON,0,0,1,2,Normal,Benign,19273,passwd_gzip_scp,UNSW_benign,
+8,30,0.15,7,19,4,203.00984622687338,User3,User3,Subnet 1 (User),Subnet 1 (User),tcp,64607,80,http,0.901774,500,5,254,252,FIN,4,3,1,3,Normal,Benign,100129,passwd_gzip_scp,UNSW_benign,
+9,30,0.15,7,19,4,220.94136424920373,Enterprise2,external_71,Subnet 2 (Enterprise),External,tcp,56150,80,http,5.763387,500,5,31,29,FIN,21,197,1,4,Normal,Benign,20009,passwd_gzip_scp,UNSW_benign,
+10,30,0.15,7,19,4,267.6538703114536,User4,external_9,Subnet 1 (User),External,tcp,30146,21,ftp,5.0,100000,50,254,252,FIN,2,1,3,3,Normal,Benign,43019,passwd_gzip_scp,UNSW_benign,
+11,30,0.15,7,19,4,302.186379748036,Enterprise2,external_OpHost1,Subnet 2 (Enterprise),External,tcp,64188,110,pop3,1.667556,86490,108,62,252,FIN,7,38,1,1,Exploits,Malicious,100118,passwd_gzip_scp,UNSW_actual,initial_access
+12,30,0.15,7,19,4,405.0535528810336,Enterprise2,external_OpServer0,Subnet 2 (Enterprise),External,udp,37848,53,dns,9e-06,114,2,254,0,INT,0,0,26,35,Generic,Malicious,173175,passwd_gzip_scp,UNSW_actual,progression
+13,30,0.15,7,19,4,500.26535969683863,Enterprise2,external_Defender,Subnet 2 (Enterprise),External,udp,8682,53,dns,1e-06,114,2,254,0,INT,0,0,36,36,Generic,Malicious,151894,passwd_gzip_scp,UNSW_actual,progression
+14,30,0.15,7,19,4,602.9825647602997,Enterprise2,external_external_156,Subnet 2 (Enterprise),External,tcp,17837,21,ftp,1.155742,1432,26,254,252,FIN,4,4,1,2,Normal,Malicious,41320,passwd_gzip_scp,UNSW_actual,progression
+15,30,0.15,7,19,4,609.2745843380148,Enterprise2,external_9,Subnet 2 (Enterprise),External,tcp,26240,20484,smtp,0.1,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
+16,30,0.15,7,19,4,759.7482665666928,Enterprise2,external_OpHost1,Subnet 2 (Enterprise),External,tcp,15599,5000,-,0.740434,68795,74,254,252,FIN,27,1,1,26,Fuzzers,Malicious,61964,passwd_gzip_scp,UNSW_actual,progression
+17,30,0.15,7,19,4,908.1741222090483,external_User4,external_scp_1,External,External,udp,63079,5000,-,5e-06,1064,2,254,0,INT,0,0,1,2,Fuzzers,Malicious,62650,passwd_gzip_scp,UNSW_actual,objective
+18,30,0.15,7,19,4,1053.3066093306104,external_User3,external_scp_1,External,External,unas,28153,5000,-,4e-06,200,2,254,0,INT,0,0,1,3,Exploits,Malicious,56027,passwd_gzip_scp,UNSW_actual,objective
+19,30,0.15,7,19,4,1203.8992558068367,Enterprise2,OpServer0,Subnet 2 (Enterprise),Subnet 3 (Operational),tcp,35627,80,http,1.095382,500,5,254,252,FIN,2,3,1,2,Normal,Benign,47598,passwd_gzip_scp,UNSW_benign,
+20,30,0.15,7,19,4,1209.6716376833465,Enterprise2,external_33,Subnet 2 (Enterprise),External,tcp,64664,49052,http,0.1,200,10,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type1,
+21,30,0.15,7,19,4,1293.2876998870688,Enterprise2,external_60,Subnet 2 (Enterprise),External,tcp,2933,3389,rdp,30.0,5000,50,31,29,FIN,7,7,1,3,Normal,Benign,22994,passwd_gzip_scp,UNSW_benign,
+22,30,0.15,7,19,4,1401.9567270675761,Enterprise2,User1,Subnet 2 (Enterprise),Subnet 1 (User),tcp,45136,80,http,4.832897,500,5,31,29,FIN,21,197,1,2,Normal,Benign,14517,passwd_gzip_scp,UNSW_benign,
+23,30,0.15,7,19,4,1404.1503099107952,Enterprise2,external_64,Subnet 2 (Enterprise),External,udp,52304,53,dns,0.01,50,1,31,29,CON,0,0,2,1,Normal,Benign,6307,passwd_gzip_scp,UNSW_benign,
+24,30,0.15,7,19,4,1460.3726031366891,User2,external_56,Subnet 1 (User),External,tcp,1236,25,smtp,1.0,132755,265,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
+25,30,0.15,7,19,4,1484.749436634746,User4,external_97,Subnet 1 (User),External,tcp,43030,53,dns,1.1970249000000002,150245,300,64,64,CON,0,0,1,1,Normal,False Alarm,-1,unknown,synthetic_false_alarm_type2,
+26,30,0.15,7,19,4,1553.5594103255453,User1,User3,Subnet 1 (User),Subnet 1 (User),tcp,11787,3389,rdp,30.0,5000,50,31,29,CON,0,0,1,1,Normal,Benign,27182,passwd_gzip_scp,UNSW_benign,
+27,30,0.15,7,19,4,1618.883636992936,Enterprise1,Enterprise2,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,10718,80,http,5.68038,500,5,254,0,REQ,3,0,1,14,Normal,Benign,45291,passwd_gzip_scp,UNSW_benign,
+28,30,0.15,7,19,4,1683.4915510996848,Enterprise0,external_57,Subnet 2 (Enterprise),External,tcp,37294,22,ssh_admin,10.0,200,10,31,29,FIN,7,37,3,7,Normal,Benign,30730,passwd_gzip_scp,UNSW_benign,
+29,30,0.15,7,19,4,1685.658274006696,User0,User4,Subnet 1 (User),Subnet 1 (User),tcp,57904,3389,rdp,30.0,5000,50,31,29,FIN,6,6,1,1,Normal,Benign,27557,passwd_gzip_scp,UNSW_benign,
+30,30,0.15,7,19,4,1774.3278433240687,Enterprise2,Enterprise1,Subnet 2 (Enterprise),Subnet 2 (Enterprise),tcp,39893,80,http,0.5,500,5,254,0,INT,0,0,2,5,Normal,Benign,100704,passwd_gzip_scp,UNSW_benign,

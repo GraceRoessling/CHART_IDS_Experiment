@@ -92,6 +92,7 @@ def generate_benign_events_step_4(
     transformed_csv_path,
     templates_path,
     global_constraints_path,
+    network_topology=None,
     benign_count_per_scenario=None,
     random_seed=42,
     output_debug=False
@@ -102,7 +103,8 @@ def generate_benign_events_step_4(
     Args:
         transformed_csv_path (str): Path to UNSW_NB15_transformed.csv
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints.json
+        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         benign_count_per_scenario (dict): Map of scenario_name -> benign_count
                                           If None, defaults to 15 for all scenarios
         random_seed (int): Seed for reproducibility
@@ -172,7 +174,8 @@ def generate_benign_events_step_4(
                     pooled_benign_df,
                     scenario_template,
                     global_constraints,
-                    benign_count=ben_count
+                    benign_count=ben_count,
+                    network_topology=network_topology
                 )
                 
                 benign_events_per_scenario[scenario_name] = events
@@ -205,13 +208,13 @@ def generate_benign_events_step_4(
         }
 
 
-def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, template, constraints, benign_count=15):
+def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, template, constraints, benign_count=15, network_topology=None):
     """
     Generate benign events for a single scenario.
     
     Strategy:
     - Sample benign_count random rows from pooled_benign_df (scenario-independent)
-    - Assign to random services with deterministic host mapping
+    - Assign to random services with concrete IP mapping from network_topology
     - Spread timestamps uniformly across [0, 1800] seconds
     - Apply topology constraints (routing rules)
     - Handle edge case: benign_count=0 (no benign events)
@@ -222,6 +225,7 @@ def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, templa
         template (dict): Scenario template
         constraints (dict): Global constraints
         benign_count (int): Number of benign events to generate (default: 15)
+        network_topology (dict, optional): Loaded network_topology_output.json for concrete IPs
     
     Returns:
         list: Benign event dictionaries (may be empty if benign_count=0)
@@ -256,7 +260,7 @@ def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, templa
         # Randomly assign source from User or Enterprise subnet
         src_host = _get_random_internal_host(['User', 'Enterprise'])
         src_subnet = map_subnet(src_host)
-        src_ip = get_deterministic_ip_for_host(scenario_name, src_host)
+        src_ip = get_deterministic_ip_for_host(scenario_name, src_host, network_topology=network_topology)
         
         # Randomly assign destination with 70% intra-subnet preference (realistic traffic)
         use_external = random.choice([True, False])
@@ -265,7 +269,7 @@ def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, templa
             # External traffic: 5-10% of total traffic
             dst_host = f"external_{random.randint(1, 100)}"
             dst_subnet = 'External'
-            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
+            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host, network_topology=network_topology)
         else:
             # Internal destination (90-95% of traffic)
             # 70% stay in same subnet, 30% cross-subnet but to allowed destinations
@@ -290,7 +294,7 @@ def _generate_benign_events_for_scenario(scenario_name, pooled_benign_df, templa
                         dst_host = 'Enterprise0'
             
             dst_subnet = map_subnet(dst_host)
-            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host)
+            dst_ip = get_deterministic_ip_for_host(scenario_name, dst_host, network_topology=network_topology)
         
         # Extract feature values from UNSW row
         duration = row.get('duration', 0.1)
@@ -368,35 +372,6 @@ def _get_random_internal_host(allowed_prefixes):
     
     # Fallback
     return f"{prefix}0"
-
-
-def _get_deterministic_ip_for_host(scenario_name, hostname):
-    """
-    Return a deterministic IP address for a hostname within a scenario.
-    
-    Args:
-        scenario_name (str): Scenario name
-        hostname (str): Hostname (e.g., 'User1', 'Enterprise0', 'external_45')
-    
-    Returns:
-        str: IP address
-    """
-    if hostname.startswith('external_'):
-        # External IPs: standard range
-        return f"203.0.{random.randint(0, 255)}.{random.randint(1, 254)}"
-    
-    # Internal IPs: map via IP_RANGES
-    for prefix, hosts in IP_RANGES.items():
-        if hostname in hosts:
-            # Deterministically select octet using MD5
-            import hashlib
-            hash_seed = f"{scenario_name}:{hostname}"
-            hash_value = int(hashlib.md5(hash_seed.encode()).hexdigest(), 16)
-            last_octet = (hash_value % 254) + 1  # 1-254
-            return f"{prefix}.{last_octet}"
-    
-    # Fallback
-    return "192.168.1.100"
 
 
 def _violates_routing_constraint(src_subnet, dst_subnet):

@@ -441,6 +441,7 @@ def write_scenario_csv(
 def assemble_30_events_step_6(
     templates_path,
     global_constraints_path,
+    network_topology=None,
     output_dir='IDS_tables',
     malicious_count_per_scenario=None,
     benign_count_per_scenario=None,
@@ -455,7 +456,8 @@ def assemble_30_events_step_6(
     
     Args:
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints.json
+        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         output_dir (str): Directory to save output CSVs
         malicious_count_per_scenario (dict): Map of scenario_name -> malicious_count
         benign_count_per_scenario (dict): Map of scenario_name -> benign_count
