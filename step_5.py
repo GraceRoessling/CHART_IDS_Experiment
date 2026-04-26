@@ -109,7 +109,7 @@ def generate_false_alarms_step_5(
     Args:
         transformed_csv_path (str): Path to UNSW_NB15_transformed.csv
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        global_constraints_path (str): Path to templates/global_constraints.json
         network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         false_alarm_count_per_scenario (dict): Map of scenario_name -> false_alarm_count
                                                If None, defaults to 5 for all scenarios

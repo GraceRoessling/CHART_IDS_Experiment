@@ -185,12 +185,12 @@ def validate_templates_step(templates_path, constraints_path, output_path=None):
     if result['errors']:
         print(f"\nErrors ({len(result['errors'])}):")
         for error in result['errors']:
-            print(f"  ✗ {error}")
+            print(f"  [ERROR] {error}")
     
     if result['warnings']:
         print(f"\nWarnings ({len(result['warnings'])}):")
         for warning in result['warnings']:
-            print(f"  ⚠ {warning}")
+            print(f"  [WARN] {warning}")
     
     if result['success']:
         print("\n[OK] Templates validated successfully and ready for Step 2")

@@ -86,7 +86,7 @@ def generate_malicious_events_step_3(
     Args:
         transformed_csv_path (str): Path to UNSW_NB15_transformed.csv
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        global_constraints_path (str): Path to templates/global_constraints.json
         network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         malicious_count_per_scenario (dict): Map of scenario_name -> malicious_count
                                              If None, derives from templates (backwards compatible)

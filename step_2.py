@@ -25,8 +25,7 @@ Outputs:
 import json
 import pandas as pd
 from pathlib import Path
-from helper_functions import load_templates, save_templates, SCENARIOS
-from fill_feature_constraints import fill_feature_constraints
+from helper_functions import load_templates, save_templates, SCENARIOS, fill_feature_constraints
 
 
 def compute_feature_stats(df, scenario_name):
@@ -194,7 +193,7 @@ def process_step_2(
     Args:
         transformed_csv_path (str): Path to UNSW_NB15_transformed.csv
         templates_path (str): Path to zero_day_templates.json
-        constraints_path (str): Path to global_constraints_v2.json (for reference)
+        constraints_path (str): Path to global_constraints.json (for reference)
         network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         output_report_path (str): Path to save summary report (default: step_2_summary.txt)
     

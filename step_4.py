@@ -103,7 +103,7 @@ def generate_benign_events_step_4(
     Args:
         transformed_csv_path (str): Path to UNSW_NB15_transformed.csv
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        global_constraints_path (str): Path to templates/global_constraints.json
         network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         benign_count_per_scenario (dict): Map of scenario_name -> benign_count
                                           If None, defaults to 15 for all scenarios

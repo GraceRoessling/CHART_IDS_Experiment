@@ -456,7 +456,7 @@ def assemble_30_events_step_6(
     
     Args:
         templates_path (str): Path to templates/zero_day_templates.json
-        global_constraints_path (str): Path to templates/global_constraints_v2.json
+        global_constraints_path (str): Path to templates/global_constraints.json
         network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         output_dir (str): Directory to save output CSVs
         malicious_count_per_scenario (dict): Map of scenario_name -> malicious_count

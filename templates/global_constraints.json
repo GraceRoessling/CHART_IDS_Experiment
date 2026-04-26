@@ -22,33 +22,10 @@
     }
   },
   
-  "network_topology": {
+  "network_topology_reference": {
+    "note": "Network topology is now fully specified in terraform_network.json. See that file for infrastructure-level details.",
     "observation_window_duration_seconds": 1800,
-    "description": "Enterprise network divided into 3 subnets with defined routing constraints",
-    "subnets": {
-      "subnet_1_user": {
-        "name": "User Workstations",
-        "hosts": ["User0", "User1", "User2", "User3", "User4"],
-        "role": "Entry points; where initial compromise typically occurs"
-      },
-      "subnet_2_enterprise": {
-        "name": "Enterprise Services",
-        "hosts": ["Enterprise0", "Enterprise1", "Enterprise2", "Defender"],
-        "role": "Internal infrastructure; targets for lateral movement"
-      },
-      "subnet_3_operational": {
-        "name": "Operational Technology",
-        "hosts": ["OpHost0", "OpServer0", "OpHost1", "OpHost2"],
-        "role": "Critical assets; high-value exfiltration targets"
-      }
-    },
-    "routing_constraints": {
-      "rule_1": "User1 is designated entry point from Subnet 1 to Subnet 2",
-      "rule_2": "Enterprise2 is designated gateway from Subnet 2 to Subnet 3",
-      "rule_3": "All cross-subnet transitions must follow these gateways; no direct Subnet 1 ↔ Subnet 3 connections",
-      "rule_4": "Operational subnet contains critical assets (high-value attack targets)"
-    },
-    "hostname_mapping_strategy": "Deterministic (same UNSW IP maps to same hostname within scenario); use MD5 hash of IP+scenario as tiebreaker"
+    "observation_window_note": "Used for temporal event sequencing in temporal_architecture_principles"
   },
   
   "unsw_grounding_principles": {

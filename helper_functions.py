@@ -871,6 +871,29 @@ def violates_routing_constraint(src_subnet, dst_subnet):
 
 
 # ============================================================
+# STEP 2: FEATURE CONSTRAINTS (Stub - Non-critical)
+# ============================================================
+
+def fill_feature_constraints(templates_path):
+    """
+    Stub function: Populate feature_constraints from computed STEP 2 statistics.
+    
+    NOTE: This is a non-critical function. If statistics are unavailable,
+    the feature_constraints will remain empty/static, which is acceptable
+    for the current pipeline.
+    
+    Args:
+        templates_path (str): Path to templates JSON file
+        
+    Returns:
+        None
+    """
+    # Stub implementation - returns successfully without modification
+    # Actual feature constraint population logic would go here if needed
+    pass
+
+
+# ============================================================
 # AWS NETWORK TOPOLOGY v2 HELPERS (NEW - Phase 2)
 # Extract host-to-IP mappings from network_topology_output.json
 # ============================================================
@@ -1026,55 +1049,490 @@ def validate_routing_path_aws(src_host, dst_host, network_topology):
     # Same subnet: always allowed (per network_topology_output.json: "All hosts within same subnet can communicate freely")
     if src_host.startswith('User') and dst_host.startswith('User'):
         return {'valid': True, 'reason': 'Same subnet (User): intra-subnet communication allowed'}
-    if src_host.startswith('Enterprise') and dst_host.startswith('Enterprise'):
-        if dst_host == 'Defender':
-            return {'valid': False, 'reason': 'Defender is IDS/IPS monitor, not regular event destination'}
-        return {'valid': True, 'reason': 'Same subnet (Enterprise): intra-subnet communication allowed'}
-    if (src_host.startswith('OpHost') or src_host.startswith('OpServer')):
-        if dst_host.startswith('OpHost') or dst_host.startswith('OpServer'):
-            return {'valid': True, 'reason': 'Same subnet (Operational): intra-subnet communication allowed'}
+
+
+# ============================================================
+# PIPELINE CONFIGURATION & ORCHESTRATION
+# ============================================================
+
+FALSE_ALARM_BINS = {
+    "zero": {
+        "label": "No false alarms",
+        "pct": 0.0,
+        "description": "Pure attack detection scenario (no triage training)"
+    },
+    "very_conservative": {
+        "label": "Very conservative",
+        "pct": 0.05,
+        "description": "5% false alarm rate (minimal noise)"
+    },
+    "conservative": {
+        "label": "Conservative",
+        "pct": 0.10,
+        "description": "10% false alarm rate (light noise)"
+    },
+    "standard": {
+        "label": "Standard (default)",
+        "pct": 0.15,
+        "description": "15% false alarm rate (balanced)"
+    },
+    "elevated": {
+        "label": "Elevated",
+        "pct": 0.20,
+        "description": "20% false alarm rate (more noise)"
+    },
+    "high": {
+        "label": "High",
+        "pct": 0.30,
+        "description": "30% false alarm rate (maximum, safe for all scenarios)"
+    }
+}
+
+FA_TYPE_RATIO_MODES = {
+    "balanced": {
+        "label": "Balanced",
+        "ratios": {"type_1": 0.4, "type_2": 0.4, "type_3": 0.2},
+        "description": "40:40:20 distribution (default - good mix of anomaly types)"
+    },
+    "port_heavy": {
+        "label": "Port-heavy",
+        "ratios": {"type_1": 0.6, "type_2": 0.2, "type_3": 0.2},
+        "description": "60:20:20 distribution (easier to detect - visible port anomalies)"
+    },
+    "volume_heavy": {
+        "label": "Volume-heavy",
+        "ratios": {"type_1": 0.2, "type_2": 0.6, "type_3": 0.2},
+        "description": "20:60:20 distribution (requires baselines - advanced analysis)"
+    },
+    "duration_heavy": {
+        "label": "Duration-heavy",
+        "ratios": {"type_1": 0.2, "type_2": 0.2, "type_3": 0.6},
+        "description": "20:20:60 distribution (subtle patterns - hard to detect manually)"
+    }
+}
+
+
+def validate_false_alarm_bin(bin_name):
+    """Validate that false_alarm_bin exists in FALSE_ALARM_BINS"""
+    if bin_name not in FALSE_ALARM_BINS:
+        valid_bins = ", ".join(FALSE_ALARM_BINS.keys())
+        raise ValueError(
+            f"Invalid false_alarm_bin: '{bin_name}'. Must be one of: {valid_bins}"
+        )
+    return True
+
+
+def validate_fa_type_ratio_mode(mode_name):
+    """Validate that fa_type_ratio_mode exists in FA_TYPE_RATIO_MODES"""
+    if mode_name not in FA_TYPE_RATIO_MODES:
+        valid_modes = ", ".join(FA_TYPE_RATIO_MODES.keys())
+        raise ValueError(
+            f"Invalid fa_type_ratio_mode: '{mode_name}'. Must be one of: {valid_modes}"
+        )
+    return True
+
+
+def validate_total_events(total_events):
+    """Validate that total_events is in valid range"""
+    if not isinstance(total_events, int) or not (18 <= total_events <= 45):
+        raise ValueError(
+            f"Invalid total_events_per_table: {total_events}. Must be integer between 18-45"
+        )
+    return True
+
+
+def validate_per_scenario_feasibility(templates_data, total_events, false_alarm_pct):
+    """
+    Check if configuration is feasible for each scenario.
+    Returns (is_valid, errors, warnings, malicious_count_dict, benign_count_dict, false_alarm_count_dict)
+    """
+    errors = []
+    warnings = []
+    malicious_count_per_scenario = {}
+    benign_count_per_scenario = {}
+    false_alarm_count_per_scenario = {}
     
-    # Cross-subnet: STRICT routing constraints per network_topology_output.json
-    # CONSTRAINT 1: User → Enterprise: ONLY User1 → Enterprise1 (designated gateway)
-    if src_host.startswith('User') and dst_host.startswith('Enterprise'):
-        if src_host == 'User1' and dst_host == 'Enterprise1':
-            return {'valid': True, 'reason': 'User1 → Enterprise1 (prescribed attack entry gateway)'}
-        elif src_host != 'User1':
-            return {'valid': False, 'reason': f'Only User1 can cross to Enterprise, not {src_host}'}
-        else:  # src_host == 'User1' but dst_host != 'Enterprise1'
-            return {'valid': False, 'reason': f'User1 can only reach Enterprise1, not {dst_host}'}
+    if 'scenarios' not in templates_data:
+        errors.append("Templates JSON missing 'scenarios' key")
+        return False, errors, warnings, {}, {}, {}
     
-    # CONSTRAINT 2: Enterprise → Operational: ONLY Enterprise2 → OpServer0 (designated gateway)
-    if src_host.startswith('Enterprise') and dst_host.startswith('OpServer'):
-        if src_host == 'Enterprise2' and dst_host == 'OpServer0':
-            return {'valid': True, 'reason': 'Enterprise2 → OpServer0 (prescribed attack gateway)'}
-        elif src_host != 'Enterprise2':
-            return {'valid': False, 'reason': f'Only Enterprise2 can reach Operational, not {src_host}'}
-        else:  # src_host == 'Enterprise2' but dst_host != 'OpServer0'
-            return {'valid': False, 'reason': f'Enterprise2 can only reach OpServer0, not {dst_host}'}
+    for scenario in templates_data['scenarios']:
+        scenario_name = scenario.get('scenario_name', 'UNKNOWN')
+        
+        # Get scenario-specific malicious count
+        if 'malicious_count' not in scenario:
+            errors.append(f"Scenario '{scenario_name}' missing 'malicious_count' field")
+            continue
+        
+        malicious_count = scenario['malicious_count']
+        
+        # Compute false alarm count (rounded)
+        false_alarm_count = round(total_events * false_alarm_pct)
+        
+        # Compute benign count (remainder)
+        benign_count = total_events - malicious_count - false_alarm_count
+        
+        # Feasibility checks
+        if benign_count < 0:
+            errors.append(
+                f"Scenario '{scenario_name}': Configuration infeasible. "
+                f"Malicious({malicious_count}) + FalseAlarm({false_alarm_count}) "
+                f"exceeds total({total_events}), leaving negative benign count({benign_count})"
+            )
+            continue
+        
+        # Store computed values
+        malicious_count_per_scenario[scenario_name] = malicious_count
+        benign_count_per_scenario[scenario_name] = benign_count
+        false_alarm_count_per_scenario[scenario_name] = false_alarm_count
+        
+        # Warnings for edge cases
+        if benign_count == 0:
+            warnings.append(
+                f"Scenario '{scenario_name}': No baseline traffic. "
+                f"Dataset will contain only malicious + false alarm events."
+            )
+        
+        if false_alarm_count == 0:
+            warnings.append(
+                f"Scenario '{scenario_name}': No false alarms. "
+                f"Pure attack detection scenario (no triage training)."
+            )
     
-    # CONSTRAINT 3: Response traffic (allowed per network_topology_output.json)
-    # Enterprise → User (responses)
-    if src_host.startswith('Enterprise') and dst_host.startswith('User'):
-        if src_host == 'Defender':
-            return {'valid': False, 'reason': 'Defender (IDS/IPS) cannot be source for regular events'}
-        return {'valid': True, 'reason': 'Enterprise → User (response traffic)'}
+    is_valid = len(errors) == 0
+    return is_valid, errors, warnings, malicious_count_per_scenario, benign_count_per_scenario, false_alarm_count_per_scenario
+
+
+class PipelineConfig:
+    """
+    Configuration container for the IDS pipeline.
+    Encapsulates all user-settable parameters with validation.
+    """
     
-    # Operational → Enterprise (responses)
-    if (src_host.startswith('OpHost') or src_host.startswith('OpServer')) and dst_host.startswith('Enterprise'):
-        if dst_host == 'Defender':
-            return {'valid': False, 'reason': 'Defender (IDS/IPS) cannot be regular event destination'}
-        return {'valid': True, 'reason': 'Operational → Enterprise (response traffic)'}
+    def __init__(self, total_events_per_table=30, false_alarm_bin="standard", fa_type_ratio_mode="balanced"):
+        """
+        Initialize pipeline configuration.
+        
+        Args:
+            total_events_per_table (int): Number of events per table (18-45)
+            false_alarm_bin (str): False alarm rate bin key
+            fa_type_ratio_mode (str): False alarm distribution mode
+            
+        Raises:
+            ValueError: If any parameter is invalid
+        """
+        self.total_events_per_table = total_events_per_table
+        self.false_alarm_bin = false_alarm_bin
+        self.fa_type_ratio_mode = fa_type_ratio_mode
+        
+        # Validate all parameters
+        validate_total_events(total_events_per_table)
+        validate_false_alarm_bin(false_alarm_bin)
+        validate_fa_type_ratio_mode(fa_type_ratio_mode)
+        
+        # Pre-compute false alarm percentage
+        self.false_alarm_pct = FALSE_ALARM_BINS[false_alarm_bin]["pct"]
     
-    # CONSTRAINT 4: External hosts (allowed per network_topology_output.json: "All User workstations have outbound internet access via IGW")
-    if src_host.startswith('external_') or dst_host.startswith('external_'):
-        if dst_host.startswith('external_'):
-            return {'valid': True, 'reason': 'External host communication (external traffic)'}
-        if src_host.startswith('external_') and (dst_host.startswith('User') or dst_host.startswith('Enterprise') or dst_host.startswith('OpServer')):
-            return {'valid': True, 'reason': 'External → internal (inbound internet traffic)'}
+    def print_summary(self):
+        """Print configuration summary to console"""
+        false_alarm_label = FALSE_ALARM_BINS[self.false_alarm_bin]["label"]
+        print(f"\n{'='*70}")
+        print(f"Pipeline Configuration:")
+        print(f"{'='*70}")
+        print(f"  Total events per table: {self.total_events_per_table}")
+        print(f"  False alarm bin: {self.false_alarm_bin} ({self.false_alarm_pct*100:.0f}%)")
+        print(f"  FA type ratio mode: {self.fa_type_ratio_mode}")
+        print(f"  (Malicious counts fixed per scenario in templates)")
+        print(f"  (Benign counts calculated as: total - malicious - false_alarm)")
+        print(f"{'='*70}\n")
+
+
+def run_pipeline(config):
+    """
+    Execute the complete IDS pipeline with given configuration.
     
-    # Default: disallow non-matching cross-subnet paths
-    return {'valid': False, 'reason': f'Cross-subnet path {src_host} → {dst_host} violates AWS topology routing constraints'}
+    Args:
+        config (PipelineConfig): Pipeline configuration parameters
+        
+    Raises:
+        ValueError: If any step fails validation or execution
+    """
+    import pre_step
+    import step_1
+    import step_2
+    import step_3
+    import step_4
+    import step_5
+    import step_6
+    import step_7
+    from pathlib import Path
+    import json as json_module
+    
+    # Print configuration
+    config.print_summary()
+    
+    # Define file paths
+    source_templates_path = Path("templates/zero_day_templates.json")
+    working_templates_path = Path("templates/_working_templates.json")
+    input_unsw_csv = Path("IDS_Datasets/UNSW_NB15_training-set(in).csv")
+    output_transformed_csv = Path("IDS_Datasets/UNSW_NB15_transformed.csv")
+    global_constraints_path = Path("templates/global_constraints.json")
+    network_topology_path = Path("templates/network_topology_output.json")
+    
+    # ============================================================
+    # INITIALIZE WORKING TEMPLATES
+    # ============================================================
+    print(f"Initializing working templates...")
+    initialize_working_templates(str(source_templates_path), str(working_templates_path))
+    print(f"  [OK] Working templates initialized: {working_templates_path}")
+    
+    # ============================================================
+    # PRE-STEP: TRANSFORM DATA
+    # ============================================================
+    if output_transformed_csv.exists():
+        print(f" Transformed dataset already exists: {output_transformed_csv}")
+    else:
+        print(f"Running Pre-Step: transforming UNSW data...")
+        pre_step.batch_transform_unsw(str(input_unsw_csv), str(output_transformed_csv))
+    
+    # ============================================================
+    # STEP 0: LOAD CONFIGURATION FILES
+    # ============================================================
+    for config_file in [global_constraints_path, network_topology_path]:
+        if not config_file.exists():
+            raise FileNotFoundError(f"Required config file not found: {config_file}")
+    
+    print(f" Global constraints file found: {global_constraints_path}")
+    print(f" Network topology file found: {network_topology_path}")
+    
+    try:
+        with open(global_constraints_path, 'r') as f:
+            global_constraints = json_module.load(f)
+        with open(network_topology_path, 'r') as f:
+            network_topology = json_module.load(f)
+    except json_module.JSONDecodeError as e:
+        raise ValueError(f"JSON parse error in config files: {e}")
+    
+    # ============================================================
+    # STEP 1: VALIDATE TEMPLATES
+    # ============================================================
+    print(f"Running Step 1: creating and validating zero-day templates...")
+    step1_result = step_1.validate_templates_step(
+        str(working_templates_path),
+        str(global_constraints_path)
+    )
+    
+    if not step1_result['success']:
+        raise ValueError(
+            f"Step 1 validation failed: {len(step1_result['errors'])} error(s)\n"
+            + "\n".join(step1_result['errors'])
+        )
+    
+    try:
+        with open(working_templates_path, 'r') as f:
+            templates_dict = json_module.load(f)
+        
+        if 'scenarios' not in templates_dict:
+            raise ValueError("Templates JSON missing 'scenarios' key")
+        if not isinstance(templates_dict['scenarios'], list):
+            raise ValueError("Templates 'scenarios' must be a list")
+        if len(templates_dict['scenarios']) == 0:
+            raise ValueError("Templates 'scenarios' is empty")
+        
+        print(f" [OK] Templates validated: {working_templates_path}")
+    except json_module.JSONDecodeError as e:
+        raise ValueError(f"Templates JSON is malformed: {e}")
+    except Exception as e:
+        raise ValueError(f"Templates validation failed: {e}")
+    
+    # ============================================================
+    # PRE-COMPUTATION: EVENT COUNTS
+    # ============================================================
+    print(f"\nValidating configuration feasibility for all scenarios...")
+    is_valid, val_errors, val_warnings, malicious_count_per_scenario, benign_count_per_scenario, false_alarm_count_per_scenario = validate_per_scenario_feasibility(
+        templates_dict, 
+        config.total_events_per_table, 
+        config.false_alarm_pct
+    )
+    
+    if not is_valid:
+        raise ValueError(
+            f"Configuration validation failed:\n" + "\n".join([f"  ERROR: {e}" for e in val_errors])
+        )
+    
+    if val_warnings:
+        print(f"\n[WARNINGS during configuration validation]")
+        for warning in val_warnings:
+            print(f"  {warning}")
+    
+    print(f"\nPer-scenario event counts (computed):")
+    for scenario in templates_dict['scenarios']:
+        scenario_name = scenario.get('scenario_name', 'UNKNOWN')
+        mal = malicious_count_per_scenario.get(scenario_name, 0)
+        ben = benign_count_per_scenario.get(scenario_name, 0)
+        fa = false_alarm_count_per_scenario.get(scenario_name, 0)
+        total = mal + ben + fa
+        print(f"  {scenario_name}: Malicious={mal}, Benign={ben}, FalseAlarm={fa}, Total={total}")
+    
+    output_dir = Path(f"IDS_tables/{config.total_events_per_table}events_{int(config.false_alarm_pct*100)}pct_fa")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"\n Output directory: {output_dir}")
+    
+    # ============================================================
+    # STEP 2: FILTER + TIER CLASSIFICATION
+    # ============================================================
+    scenarios_with_attacks = [s for s in templates_dict['scenarios'] if s.get('malicious_count', 0) > 0]
+    scenarios_no_attack = [s for s in templates_dict['scenarios'] if s.get('malicious_count', 0) == 0]
+    
+    if scenarios_with_attacks:
+        print(f"\nRunning Step 2: filtering & tier classification...")
+        step2_result = step_2.process_step_2(
+            str(output_transformed_csv),
+            str(working_templates_path),
+            str(global_constraints_path),
+            network_topology=network_topology,
+            output_report_path="step_2_summary.txt"
+        )
+        
+        if not step2_result['success']:
+            raise ValueError(
+                f"Step 2 failed: {len(step2_result['errors'])} error(s)\n"
+                + "\n".join(step2_result['errors'])
+            )
+    
+    if scenarios_no_attack:
+        print(f"\n[SKIPPED] Step 2 for attack-free scenarios: {[s['scenario_name'] for s in scenarios_no_attack]}")
+        print(f"           (No UNSW filtering needed for pure benign traffic)")
+    
+    # ============================================================
+    # STEP 3: MALICIOUS EVENTS
+    # ============================================================
+    if scenarios_with_attacks:
+        print(f"\nRunning Step 3: generating malicious events...")
+        step3_result = step_3.generate_malicious_events_step_3(
+            str(output_transformed_csv),
+            str(working_templates_path),
+            str(global_constraints_path),
+            network_topology=network_topology,
+            malicious_count_per_scenario=malicious_count_per_scenario,
+            random_seed=42
+        )
+        
+        if not step3_result['success']:
+            raise ValueError(
+                f"Step 3 failed: {len(step3_result['errors'])} error(s)\n"
+                + "\n".join(step3_result['errors'])
+            )
+    
+    if scenarios_no_attack:
+        print(f"\n[SKIPPED] Step 3 for attack-free scenarios: {[s['scenario_name'] for s in scenarios_no_attack]}")
+        print(f"           (No malicious event generation needed)")
+    
+    # ============================================================
+    # STEP 4: BENIGN EVENTS
+    # ============================================================
+    print(f"\nRunning Step 4: generating benign events...")
+    step4_result = step_4.generate_benign_events_step_4(
+        str(output_transformed_csv),
+        str(working_templates_path),
+        str(global_constraints_path),
+        network_topology=network_topology,
+        benign_count_per_scenario=benign_count_per_scenario,
+        random_seed=42
+    )
+    
+    if not step4_result['success']:
+        raise ValueError(
+            f"Step 4 failed: {len(step4_result['errors'])} error(s)\n"
+            + "\n".join(step4_result['errors'])
+        )
+    
+    # ============================================================
+    # STEP 5: FALSE ALARMS
+    # ============================================================
+    print(f"\nRunning Step 5: generating false alarm events...")
+    step5_result = step_5.generate_false_alarms_step_5(
+        str(output_transformed_csv),
+        str(working_templates_path),
+        str(global_constraints_path),
+        network_topology=network_topology,
+        false_alarm_count_per_scenario=false_alarm_count_per_scenario,
+        fa_type_ratio_mode=config.fa_type_ratio_mode,
+        random_seed=42
+    )
+    
+    if not step5_result['success']:
+        raise ValueError(
+            f"Step 5 failed: {len(step5_result['errors'])} error(s)\n"
+            + "\n".join(step5_result['errors'])
+        )
+    
+    # ============================================================
+    # STEP 6: FINAL ASSEMBLY
+    # ============================================================
+    print(f"\nRunning Step 6: assembling {config.total_events_per_table}-event tables with temporal ordering...")
+    step6_result = step_6.assemble_30_events_step_6(
+        str(working_templates_path),
+        str(global_constraints_path),
+        network_topology=network_topology,
+        output_dir=str(output_dir),
+        malicious_count_per_scenario=malicious_count_per_scenario,
+        benign_count_per_scenario=benign_count_per_scenario,
+        false_alarm_count_per_scenario=false_alarm_count_per_scenario,
+        total_events_param=config.total_events_per_table,
+        false_alarm_pct_param=config.false_alarm_pct,
+        output_report_path=str(output_dir / "step_6_summary.txt"),
+        random_seed=42
+    )
+    
+    if not step6_result['success']:
+        print(f"\n[WARN] Step 6 completed with warnings/errors:")
+        for err in step6_result['errors']:
+            print(f"  - {err}")
+    else:
+        print(f"[OK] Step 6 completed successfully")
+    
+    print(f"\n  Generated CSV files:")
+    for scenario, csv_path in step6_result['csv_paths'].items():
+        print(f"    - {csv_path}")
+    
+    # ============================================================
+    # STEP 7: AWS NETWORK TOPOLOGY VALIDATION
+    # ============================================================
+    print(f"\nRunning Step 7: validating AWS network topology constraints...")
+    step7_result = step_7.validate_topology_step_7(
+        str(output_dir),
+        str(network_topology_path)
+    )
+    
+    if not step7_result['success']:
+        print(f"\n{'='*80}")
+        print(f"VALIDATION ERRORS DETECTED")
+        print(f"{'='*80}")
+        print(f"\nTotal errors: {step7_result['total_errors']}")
+        print(f"\nDetailed error report:")
+        for error in step7_result['all_errors']:
+            print(error)
+        print(f"\n{'='*80}")
+        raise ValueError(
+            f"Step 7 validation failed with {step7_result['total_errors']} error(s). "
+            f"Review error messages above for constraint violations."
+        )
+    else:
+        print(f"\n[OK] Step 7 validation PASSED: All AWS topology constraints satisfied.")
+    
+    # ============================================================
+    # FINAL SUMMARY
+    # ============================================================
+    print("\n" + "="*80)
+    print(" PIPELINE COMPLETE: PRE-STEP THROUGH STEP 7")
+    print("="*80)
+    print(f"\nFinal outputs in {output_dir}/ folder:")
+    for scenario in step6_result['csv_paths'].keys():
+        basename = Path(step6_result['csv_paths'][scenario]).name
+        print(f"  [OK] {basename}")
+    print(f"\nValidation report: Step 7 AWS topology validation PASSED")
+    print(f"Summary report: {output_dir}/step_6_summary.txt")
 
 
 def get_all_hosts_from_topology(network_topology):

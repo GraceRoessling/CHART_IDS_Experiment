@@ -529,10 +529,10 @@ def validate_topology_step_7(
     try:
         network_topology = load_network_topology(network_topology_path)
         topology_data = extract_topology_data(network_topology)
-        print(f"  ✓ Network topology loaded")
+        print(f"  [OK] Network topology loaded")
         print(f"    - Hosts: {len(topology_data['all_hosts'])}")
         print(f"    - Subnets: {list(topology_data['subnets'].keys())}")
-        print(f"    - Attack path: {' → '.join(topology_data['attack_path'])}")
+        print(f"    - Attack path: {' -> '.join(topology_data['attack_path'])}")
     except Exception as e:
         return {
             'success': False,
@@ -592,11 +592,11 @@ def validate_topology_step_7(
             scenario_validation_summary[constraint_name] = (len(constraint_errors) == 0)
             
             if constraint_errors:
-                print(f"  ✗ [{constraint_name}] {len(constraint_errors)} error(s)")
+                print(f"  [ERROR] [{constraint_name}] {len(constraint_errors)} error(s)")
                 scenario_errors.extend(constraint_errors)
                 all_errors.extend(constraint_errors)
             else:
-                print(f"  ✓ [{constraint_name}] PASS")
+                print(f"  [OK] [{constraint_name}] PASS")
         
         errors_by_scenario[scenario_name] = scenario_errors
         validation_summary[scenario_name] = scenario_validation_summary
@@ -609,10 +609,10 @@ def validate_topology_step_7(
     print("="*80)
     
     if success:
-        print("✓ ALL CONSTRAINTS PASSED")
+        print("[OK] ALL CONSTRAINTS PASSED")
         print(f"  {len(scenario_names)} scenarios validated successfully.")
     else:
-        print(f"✗ VALIDATION FAILED")
+        print(f"[ERROR] VALIDATION FAILED")
         print(f"  Total errors: {len(all_errors)}")
         print(f"  Scenarios with errors: {len(errors_by_scenario)}")
         print(f"\nDetailed Error Report:")
