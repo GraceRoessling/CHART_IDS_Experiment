@@ -1,7 +1,82 @@
 # IDS Pipeline Implementation Review - Steps 0-6
 
-**Date**: April 18, 2026  
-**Status**: Pre-Step through Step 6 ✅ COMPLETE
+**Date**: April 18, 2026 (Updated April 26, 2026)  
+**Status**: Pre-Step through Step 6 ✅ COMPLETE  
+**Version**: Parameterized Pipeline with Network Topology Output
+
+---
+
+## 🎛️ Pipeline Configuration (NEW)
+
+The pipeline is now **fully parameterized**, allowing flexible experiment configuration without code changes.
+
+### Configuration Parameters (set in `main.py`)
+
+| Parameter | Range | Default | Purpose |
+|-----------|-------|---------|---------|
+| `TOTAL_EVENTS_PER_TABLE` | 18-45 | 30 | Total events per scenario table (controls malicious/benign/FA split) |
+| `FALSE_ALARM_BIN` | zero, very_conservative, conservative, standard, elevated, high | standard | False alarm rate percentage (0%-30%) |
+| `FA_TYPE_RATIO_MODE` | balanced, port_heavy, volume_heavy, duration_heavy | balanced | False alarm type distribution (Type 1:2:3 ratios) |
+
+**Example Configuration** (from main.py):
+```python
+TOTAL_EVENTS_PER_TABLE = 18           # Range: 18-45 events per table
+FALSE_ALARM_BIN = "high"             # Options: zero | very_conservative | conservative | standard | elevated | high
+FA_TYPE_RATIO_MODE = "balanced"      # Options: balanced | port_heavy | volume_heavy | duration_heavy
+```
+
+### False Alarm Rate Bins
+
+- **zero** (0%): Pure attack detection scenario, no training data needed for triage
+- **very_conservative** (5%): Minimal noise, for high-sensitivity scenarios
+- **conservative** (10%): Light noise baseline
+- **standard** (15%): Default balanced configuration
+- **elevated** (20%): Moderate noise for robustness testing
+- **high** (30%): Maximum safe false alarm rate (all scenarios valid)
+
+### False Alarm Type Distribution Modes
+
+Defines the ratio of Type 1 (Unusual Port) : Type 2 (High Volume) : Type 3 (Rare Duration) false alarms:
+
+- **balanced** (40:40:20): Default, good mix of all anomaly types
+- **port_heavy** (60:20:20): Easier to detect, visible port anomalies
+- **volume_heavy** (20:60:20): Requires baselines, advanced analysis needed
+- **duration_heavy** (20:20:60): Subtle patterns, hard to detect manually
+
+**Note**: Malicious event counts (10-11 per scenario) and benign event counts (15 per scenario) remain fixed per scenario definition in `zero_day_templates.json`.
+
+---
+
+## 🌐 Network Topology Output (NEW)
+
+The pipeline now uses **AWS-based concrete network topologies** generated from `network_topology_output.json`.
+
+### Purpose of network_topology_output.json
+
+- **Concrete Host IPs**: Maps logical hostnames to actual AWS EC2 instances with specific IP addresses
+- **Subnet/VPC Structure**: Defines AWS subnets, availability zones, and routing constraints
+- **Topology Validation**: Enforces realistic AWS routing rules (not all subnets can communicate directly)
+- **Reproducible Scenarios**: Ensures all generated network traffic respects the fixed AWS topology
+
+### Topology Integration in Pipeline
+
+| Step | Use | Example |
+|------|-----|---------|
+| **Pre-Step** | — | UNSW rows transformed independently |
+| **Step 2** | Subnet/host validation during filtering | Reject malicious flows violating AWS routing rules |
+| **Step 3** | Host assignment for malicious events | Map entry_point/target_asset to concrete AWS hosts |
+| **Step 4** | Benign traffic generation | Generate realistic internal/external traffic respecting AWS constraints |
+| **Step 5** | False alarm host assignment | Assign false alarms to valid AWS hosts with topology constraints |
+| **Step 6** | Final validation & CSV output | Verify all events use valid hosts from network_topology_output.json |
+
+### Key Topology Constraints
+
+From `network_topology_output.json`:
+- **3 AWS Subnets** (User, Enterprise, Operational) with defined CIDR blocks
+- **15 internal hosts** distributed across subnets
+- **Routing restrictions**: Some subnet pairs cannot communicate directly (requires intermediate routing through gateway)
+- **Same-subnet communication**: All hosts within same subnet can communicate freely
+- **External hosts**: Unlimited external IP generation for internet-facing traffic
 
 ---
 
@@ -215,23 +290,41 @@ All utilities in place:
 
 **File**: `main.py`
 
+**Configuration & Verification**:
+```python
+# User-editable configuration section
+config = PipelineConfig(
+    total_events_per_table=TOTAL_EVENTS_PER_TABLE,
+    false_alarm_bin=FALSE_ALARM_BIN,
+    fa_type_ratio_mode=FA_TYPE_RATIO_MODE
+)
+# Configuration validated and passed to pipeline
+```
+
 **Verified Sequence**:
 ```python
 1. Pre-Step: batch_transform_unsw() ✅
    └─ Creates: UNSW_NB15_transformed.csv
+   └─ Uses: Raw UNSW-NB15 dataset
 
 2. Step 0: Load global_constraints.json ✅
-   └─ Validates: exists and is well-formed
+   └─ Validates: Experiment rules, taxonomy, topology
 
 3. Step 1: validate_templates_step() ✅
-   └─ Validates: all 5 scenarios have required structure
+   └─ Validates: All 5 scenarios have required structure
 
 4. Step 2: process_step_2() ✅
    └─ Updates: templates with tier + stats
    └─ Creates: step_2_summary.txt
+   └─ Uses: network_topology_output.json for validation
+
+5. Steps 3-6: Event generation with parameterized config ✅
+   └─ Respects: TOTAL_EVENTS_PER_TABLE, FALSE_ALARM_BIN, FA_TYPE_RATIO_MODE
+   └─ Uses: network_topology_output.json for host/subnet assignment
+   └─ Outputs: IDS_tables/{scenario}_*_events.csv
 ```
 
-**Error Handling**: ✅ Proper exception handling at each step
+**Error Handling**: ✅ Proper exception handling at each step + parameter validation
 
 **No Gaps** ✅
 
@@ -595,27 +688,44 @@ Each scenario uses a 1800-second observation window divided into phases:
 ## Overall Assessment
 
 ### Strengths 💪
-1. **Solid foundation**: Pre-Step through Step 4 are well-implemented and tested
+1. **Solid foundation**: Pre-Step through Step 6 fully implemented and tested
 2. **Clean architecture**: Each step has clear input/output and responsibility
-3. **Comprehensive validation**: Multiple checks ensure data integrity
+3. **Comprehensive validation**: Multiple checks ensure data integrity and constraint satisfaction
 4. **Good documentation**: Code comments explain intent and rationale
 5. **Deterministic**: Reproducible results via seeding and hashing
 6. **Traceability**: Tracking columns enable auditing
 7. **Realistic benign baseline**: Service diversity and topology adherence
+8. **Parameterized pipeline** (NEW): Flexible experiment configuration without code changes
+9. **AWS topology integration** (NEW): Concrete host/subnet assignments respect realistic AWS routing
+10. **Scalable false alarm generation** (NEW): Adjustable rates and type ratios for diverse scenarios
 
-### Readiness for Step 6 📈
-- ✅ All prerequisites complete (Steps 0-5 done)
-- ✅ Malicious events generated with proper phase causality (10-11 per scenario)
-- ✅ Benign events generated with service diversity (15 per scenario)
-- ✅ False alarm events generated with 3-type taxonomy (5 per scenario)
-- ✅ Feature statistics available in `_step2_stats`
-- ✅ Tier classification verified (all TIER 1)
-- ✅ All false alarm field names standardized (consistent `_source` values)
+### Key Enhancements (April 2026)
+
+**Parameterization**:
+- Pipeline now accepts 3 configuration parameters (total_events, false_alarm_bin, fa_type_ratio_mode)
+- All parameters validated with clear error messages
+- Default values sensible for most experiments
+- Enables systematic parameter sweeps for research
+
+**Network Topology**:
+- Integrated AWS-based concrete topologies (network_topology_output.json)
+- All network traffic respects AWS subnet routing constraints
+- Realistic host-to-IP mapping (no synthetic IPs for internal hosts)
+- Supports topology-aware false alarm generation
+
+### Readiness for Production
+- ✅ All parameters validated with helpful error messages
+- ✅ Network topology enforced at all event generation steps
+- ✅ Can generate 18-45 events per scenario (flexible dataset sizes)
+- ✅ 0%-30% false alarm rate adjustable per experiment
+- ✅ False alarm type distribution configurable
+- ✅ All constraints enforced across entire pipeline
 
 ### Recommendations 🎯
-1. ✅ **DONE**: Step 5 false alarm event generation with 3-type taxonomy (UNSW-grounded)
-2. **Next**: Implement Step 6 (final assembly combining all 30 events)
-3. **Testing**: Run main.py end-to-end; verify all scenarios have 30 events (10-11 malicious + 15 benign + 5 false alarm) with proper timestamps and labels
+1. ✅ **DONE**: Parameterized pipeline with validation
+2. ✅ **DONE**: Network topology output integration
+3. Consider: Add experiment logging to track parameter-to-output mappings
+4. Consider: Generate multiple scenario tables with parameter sweeps
 
 ---
 
@@ -623,16 +733,19 @@ Each scenario uses a 1800-second observation window divided into phases:
 
 | File | Status | Lines | Purpose |
 |------|--------|-------|---------|
-| main.py | ✅ Complete | 220+ | Orchestrator (Steps 0-4 done, 5-6 TODO) |
+| main.py | ✅ Complete | 220+ | Orchestrator with parameterized config (Steps 0-6) |
+| helper_functions.py | ✅ Complete | 550+ | Shared utilities, topology validation, network_topology_output.json integration |
 | pre_step.py | ✅ Complete | 400+ | UNSW transformation |
 | step_1.py | ✅ Complete | 150+ | Template validation |
-| step_2.py | ✅ Complete | 300+ | Filter & tier classification |
-| step_3.py | ✅ Complete | 400+ | Malicious event generation with phase causality |
-| step_4.py | ✅ Complete | 400+ | Benign event generation with service diversity |
-| step_5.py | ✅ Complete | 240+ | False alarm event generation (3-type, UNSW-grounded) |
-| helper_functions.py | ✅ Complete | 550+ | Shared utilities & topology validation (Step 5 functions added) |
-| global_constraints.json | ✅ Complete | 200+ | Experiment rules (note: false alarm field name issue) |
-| zero_day_templates.json | ✅ Complete | 600+ | Scenario configs (includes _step3_malicious_events, _step4_benign_events) |
-| IDS_generation_method.md | 📖 Reference | 850+ | Implementation guide (includes Step 4 details) |
+| step_2.py | ✅ Complete | 300+ | Filter & tier classification with topology validation |
+| step_3.py | ✅ Complete | 400+ | Malicious event generation with phase causality & AWS topology |
+| step_4.py | ✅ Complete | 400+ | Benign event generation with service diversity & AWS topology |
+| step_5.py | ✅ Complete | 240+ | False alarm event generation (3-type, parameterized ratios) |
+| step_6.py | ✅ Complete | TBD | Final assembly with temporal ordering & CSV output |
+| global_constraints.json | ✅ Complete | 200+ | Experiment rules (false alarm taxonomy) |
+| zero_day_templates.json | ✅ Complete | 600+ | Scenario configs (includes _step3-5 event data) |
+| network_topology_output.json | ✅ Complete | 200+ | AWS topology: hosts, subnets, IPs, routing constraints |
+| terraform_network.json | 📖 Reference | 150+ | AWS Terraform config (network infrastructure definition) |
+| IDS_generation_method.md | 📖 Reference | 850+ | Implementation guide (includes topology details) |
 | ids_pipeline_remediation.md | 📖 Reference | 400+ | Gap analysis & solutions |
 
