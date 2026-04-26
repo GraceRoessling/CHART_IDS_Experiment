@@ -1,15 +1,21 @@
 """
-Step 6: Assemble Final 30-Event IDS Tables with Temporal Ordering
-Purpose: Combine malicious (10-11), benign (15), and false alarm (4-5) events.
+Step 6: Assemble Final IDS Tables with Temporal Ordering and Dynamic Phase Allocation
+Purpose: Combine malicious (scenario-specific), benign (parameterized), and false alarm (parameterized) events.
          Assign timestamps using phase architecture.
          Output final CSV tables (23 columns: 21 schema + 2 tracking).
 
 Temporal Architecture (all scenarios):
-  - Phase 0 (Benign Baseline):     0-300s,     6 events (benign)
-  - Phase 1 (Attack Phase 1):    300-600s,     3 events (malicious)
-  - Phase 2 (Attack Phase 2):    600-900s,     3 events (malicious)
-  - Phase 3 (Attack Phase 3):    900-1200s,    2 events (malicious)
-  - Phase 4 (Benign Recovery):   1200-1800s,   9 events (benign + false alarms)
+  - Fixed: 5 phases distributed over 1800s observation window (0-300s, 300-600s, 600-900s, 900-1200s, 1200-1800s)
+  - Dynamic: Phase event_count allocations computed based on actual malicious/benign/false_alarm counts
+  - Benign baseline and recovery phases preserve minimum viable coverage
+  - Attack phases scale with malicious_count parameter
+  - False alarm events distributed in recovery phase based on false_alarm_count parameter
+
+Parameterization Note:
+  - Malicious event count: Fixed per scenario template (WannaCry=11, Data_Theft=9, ShellShock=9, etc.)
+  - Benign event count: Computed as (TOTAL_EVENTS_PER_TABLE - malicious - false_alarm)
+  - False alarm event count: Computed as round(TOTAL_EVENTS_PER_TABLE × FALSE_ALARM_BIN_PCT)
+  - Phase event_count slots: Dynamically allocated based on above values (see get_temporal_architecture())
 """
 
 import pandas as pd
@@ -29,21 +35,35 @@ from pathlib import Path
 # TEMPORAL ARCHITECTURE: Read from templates & constraints
 # ============================================================
 
-def get_temporal_architecture(scenario_template, global_constraints):
+def get_temporal_architecture(scenario_template, global_constraints, 
+                               malicious_count=None, benign_count=None, 
+                               false_alarm_count=None):
     """
-    Extract temporal architecture for a scenario.
+    Extract temporal architecture for a scenario with DYNAMIC phase allocation.
+    
+    CHANGED: Now accepts event count parameters to dynamically allocate phase slots.
+    Instead of hardcoding 6+4+4+2+9=25 event slots (only works for total=30),
+    this function now scales phase slots based on actual event counts passed.
+    
     - Phases come from scenario template (zero_day_templates.json)
     - False alarm zones come from global_constraints.json
+    - Phase event_count allocations are NOW COMPUTED based on event parameters
     
     Args:
         scenario_template (dict): Scenario from zero_day_templates.json
         global_constraints (dict): Global constraints configuration
+        malicious_count (int): Number of malicious events (required for dynamic allocation)
+        benign_count (int): Number of benign events (required for dynamic allocation)
+        false_alarm_count (int): Number of false alarm events (optional, for phase distribution info)
     
     Returns:
         dict: Temporal architecture with phases and false_alarm_zones
     """
     phases = []
     false_alarm_zones = [(600, 700), (1200, 1300), (1400, 1500)]  # Default zones
+    
+    # NEW: Compute total events from passed parameters
+    total_events = (malicious_count or 0) + (benign_count or 0) + (false_alarm_count or 0)
     
     try:
         # Read phases from scenario template
@@ -52,17 +72,48 @@ def get_temporal_architecture(scenario_template, global_constraints):
             if 'phases' in scenario_ta:
                 phases = scenario_ta.get('phases', [])
     except Exception as e:
-        print(f"  Warning: Could not read phases from template ({str(e)}). Using defaults.")
+        print(f"  Warning: Could not read phases from template ({str(e)}). Using dynamic defaults.")
     
-    # If no phases from template, use fallback
+    # If no phases from template, use DYNAMIC fallback based on event counts
     if not phases:
-        phases = [
-            {'name': 'benign_baseline', 'start': 0, 'end': 300, 'type': 'benign', 'event_count': 6},
-            {'name': 'attack_phase_1', 'start': 300, 'end': 600, 'type': 'attack', 'event_count': 4},
-            {'name': 'attack_phase_2', 'start': 600, 'end': 900, 'type': 'attack', 'event_count': 4},
-            {'name': 'attack_phase_3', 'start': 900, 'end': 1200, 'type': 'attack', 'event_count': 2},
-            {'name': 'benign_recovery', 'start': 1200, 'end': 1800, 'type': 'benign', 'event_count': 9},
-        ]
+        # CHANGED: Instead of hardcoding 6+4+4+2+9=25 slots,
+        # dynamically allocate based on actual event counts
+        
+        if total_events > 0:
+            # Allocate phase slots proportionally to event counts
+            # Phase 1 (baseline): 25-30% of benign
+            # Phases 2-4 (attack): 100% of malicious
+            # Phase 5 (recovery): 70-75% of benign + false alarms
+            
+            baseline_benign = max(2, int(benign_count * 0.25) if benign_count else 1)
+            recovery_benign = max(2, (benign_count or 0) - baseline_benign)
+            
+            # Distribute malicious across 3 attack phases (roughly 40:40:20 ratio)
+            attack_1 = int((malicious_count or 0) * 0.40)
+            attack_2 = int((malicious_count or 0) * 0.40)
+            attack_3 = max(0, (malicious_count or 0) - attack_1 - attack_2)
+            
+            phases = [
+                {'name': 'benign_baseline', 'start': 0, 'end': 300, 'type': 'benign', 
+                 'event_count': baseline_benign},
+                {'name': 'attack_phase_1', 'start': 300, 'end': 600, 'type': 'attack', 
+                 'event_count': attack_1},
+                {'name': 'attack_phase_2', 'start': 600, 'end': 900, 'type': 'attack', 
+                 'event_count': attack_2},
+                {'name': 'attack_phase_3', 'start': 900, 'end': 1200, 'type': 'attack', 
+                 'event_count': attack_3},
+                {'name': 'benign_recovery', 'start': 1200, 'end': 1800, 'type': 'benign', 
+                 'event_count': recovery_benign + (false_alarm_count or 0)},
+            ]
+        else:
+            # Fallback for edge case where all counts are zero
+            phases = [
+                {'name': 'benign_baseline', 'start': 0, 'end': 300, 'type': 'benign', 'event_count': 0},
+                {'name': 'attack_phase_1', 'start': 300, 'end': 600, 'type': 'attack', 'event_count': 0},
+                {'name': 'attack_phase_2', 'start': 600, 'end': 900, 'type': 'attack', 'event_count': 0},
+                {'name': 'attack_phase_3', 'start': 900, 'end': 1200, 'type': 'attack', 'event_count': 0},
+                {'name': 'benign_recovery', 'start': 1200, 'end': 1800, 'type': 'benign', 'event_count': 0},
+            ]
     
     # Read false_alarm_zones from global_constraints (not from template)
     try:
@@ -116,11 +167,26 @@ def assign_timestamps_to_events(
     random.seed(random_seed)
     timestamped_events = []
     
-    # Get temporal architecture from template or fallback
+    # Get temporal architecture from template with DYNAMIC phase allocation
+    # Now pass actual event counts so phases scale correctly
+    malicious_count = len(malicious_events) if malicious_events else 0
+    benign_count = len(benign_events) if benign_events else 0
+    false_alarm_count = len(false_alarm_events) if false_alarm_events else 0
+    
     if scenario_template:
-        arch = get_temporal_architecture(scenario_template, global_constraints or {})
+        arch = get_temporal_architecture(
+            scenario_template, global_constraints or {},
+            malicious_count=malicious_count,
+            benign_count=benign_count,
+            false_alarm_count=false_alarm_count
+        )
     else:
-        arch = get_temporal_architecture({}, global_constraints or {})
+        arch = get_temporal_architecture(
+            {}, global_constraints or {},
+            malicious_count=malicious_count,
+            benign_count=benign_count,
+            false_alarm_count=false_alarm_count
+        )
     
     phases = arch['phases']
     
@@ -234,18 +300,21 @@ def assign_timestamps_to_events(
     return timestamped_events
 
 
-def validate_30_event_table(events, scenario_name, expected_total=30, expected_malicious=10, 
+def validate_event_table(events, scenario_name, expected_total=30, expected_malicious=10, 
                              expected_benign=15, expected_false_alarm=5):
     """
     Validate that final event table meets all requirements.
     
+    CHANGED: Function renamed from validate_30_event_table to validate_event_table
+    to reflect that it now supports parameterized event counts (not just 30-event tables).
+    
     Args:
         events (list): List of event dicts
         scenario_name (str): Scenario name (for reporting)
-        expected_total (int): Expected total events (default: 30, for compatibility)
-        expected_malicious (int): Expected malicious events (default: 10, for compatibility)
-        expected_benign (int): Expected benign events (default: 15, for compatibility)
-        expected_false_alarm (int): Expected false alarm events (default: 5, for compatibility)
+        expected_total (int): Expected total events (caller must provide actual value, not just default of 30)
+        expected_malicious (int): Expected malicious events (caller must provide scenario-specific value)
+        expected_benign (int): Expected benign events (caller must provide computed value)
+        expected_false_alarm (int): Expected false alarm events (caller must provide computed value)
         
     Returns:
         dict: {
@@ -548,7 +617,7 @@ def assemble_30_events_step_6(
             )
             
             # Validate
-            validation = validate_30_event_table(
+            validation = validate_event_table(
                 timestamped_events,
                 scenario_name,
                 expected_total=mal_count + ben_count + fa_count,

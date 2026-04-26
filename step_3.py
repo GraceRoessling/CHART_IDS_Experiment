@@ -1,6 +1,7 @@
 """
 Step 3: Generate Malicious Events
-Purpose: Create 10-11 realistic malicious events per scenario using tiered synthesis
+Purpose: Create scenario-specific malicious events (fixed per scenario template: WannaCry=11, Data_Theft=9, 
+         ShellShock=9, Netcat_Backdoor=7, passwd_gzip_scp=7, No_Attack=0) using tiered synthesis
          with scenario-aware phase-based causality.
 """
 

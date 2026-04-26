@@ -4,21 +4,30 @@
   "last_updated": "2026-04-17",
   
   "label_distribution": {
-    "total_events_per_table": 30,
+    "note": "PARAMETERIZED: Values below are for default configuration (total=30, FA_BIN=standard/15%). Actual counts computed dynamically based on TOTAL_EVENTS_PER_TABLE and FALSE_ALARM_BIN.",
+    "default_example_only": {
+      "total_events_per_table": 30,
+      "formula_note": "These are EXAMPLES for total_events=30, FA_pct=15%. Actual values computed as: malicious_count[scenario] (fixed per scenario template), false_alarm_count = round(total × FA_pct), benign = total - malicious - false_alarm"
+    },
     "malicious": {
-      "count": "10-11 events",
-      "percentage": "35%",
-      "definition": "Network flows that represent actual attack activity matching scenario attack_cat from UNSW-NB15"
+      "count_default_example": "10-11 events (varies by scenario: WannaCry=11, Data_Theft=9, ShellShock=9, Netcat_Backdoor=7, passwd_gzip_scp=7, No_Attack=0; these are FIXED per scenario template, not parameterized)",
+      "percentage_default_example": "35% (at total=30)",
+      "definition": "Network flows that represent actual attack activity matching scenario attack_cat from UNSW-NB15",
+      "parameterization": "Determined by scenario template (non-parameterizable); benign_count = total - malicious - false_alarm"
     },
     "benign": {
-      "count": 15,
-      "percentage": "50%",
-      "definition": "Routine enterprise traffic (web browsing, DNS queries, SSH admin connections, file transfers) unrelated to attack progression"
+      "count_formula": "benign_count = TOTAL_EVENTS_PER_TABLE - scenario_malicious_count - false_alarm_count",
+      "count_default_example": "15 (when total=30, FA=15%)",
+      "percentage_default_example": "50% (at total=30, FA=15%)",
+      "definition": "Routine enterprise traffic (web browsing, DNS queries, SSH admin connections, file transfers) unrelated to attack progression",
+      "parameterization": "Dynamically computed; adjust TOTAL_EVENTS_PER_TABLE to change"
     },
     "false_alarm": {
-      "count": "4-5 events",
-      "percentage": "15%",
-      "definition": "Locally anomalous but globally common events; appear suspicious in isolation but represent benign activity"
+      "count_formula": "false_alarm_count = round(TOTAL_EVENTS_PER_TABLE × FALSE_ALARM_BIN_PCT)",
+      "count_default_example": "4-5 events (at total=30, FA_pct=15%)",
+      "percentage_default_example": "15% (depends on FALSE_ALARM_BIN parameter)",
+      "definition": "Locally anomalous but globally common events; appear suspicious in isolation but represent benign activity",
+      "parameterization": "Set via FALSE_ALARM_BIN in main.py: zero(0%), very_conservative(5%), conservative(10%), standard(15%), elevated(20%), high(30%)"
     }
   },
   
@@ -164,7 +173,7 @@
   "output_schema": {
     "format": "CSV",
     "total_columns": "23 (21 schema + 2 tracking)",
-    "description": "Output CSV structure for each scenario (30-event table); exact column order is CRITICAL for downstream NoDOZE alignment",
+    "description": "Output CSV structure for each scenario (parameterized event count per TOTAL_EVENTS_PER_TABLE; typically 18-45 events); exact column order is CRITICAL for downstream NoDOZE alignment",
     "schema_columns_21": [
       "timestamp",
       "src_host",
@@ -218,20 +227,28 @@
   },
   
   "validation_checkpoints": {
-    "description": "Comprehensive sanity checks to validate each scenario's 30-event table",
+    "description": "Comprehensive sanity checks to validate each scenario's table. Validation is now PARAMETERIZED (formerly hardcoded for 30-event tables).",
+    "note": "The actual validation logic has been moved to Python code (step_6.py::validate_event_table) which accepts parameters. This JSON documents the validation principles and formulas.",
     "critical_checks": [
       {
         "check_id": 1,
         "name": "Row count",
-        "description": "Exactly 30 events per scenario",
-        "condition": "len(df) == 30",
+        "description": "Event count matches TOTAL_EVENTS_PER_TABLE parameter (formerly hardcoded to 30)",
+        "condition": "len(df) == TOTAL_EVENTS_PER_TABLE",
+        "parameter": "TOTAL_EVENTS_PER_TABLE (set in main.py; range 18-45)",
         "severity": "CRITICAL"
       },
       {
         "check_id": 2,
         "name": "Label distribution",
-        "description": "Malicious 10-11, Benign 15, False Alarm 4-5 (±1 tolerance)",
-        "condition": "10 ≤ Malicious ≤ 11 AND Benign == 15 AND 4 ≤ FalseAlarm ≤ 5",
+        "description": "Malicious, Benign, False Alarm counts match parameterized formulas (formerly hardcoded 10-11 / 15 / 4-5)",
+        "condition": "Malicious == scenario_template_malicious_count AND Benign == (TOTAL_EVENTS_PER_TABLE - Malicious - FalseAlarm) AND FalseAlarm == round(TOTAL_EVENTS_PER_TABLE × FALSE_ALARM_BIN_PCT)",
+        "parameters": {
+          "TOTAL_EVENTS_PER_TABLE": "Set in main.py; range 18-45",
+          "FALSE_ALARM_BIN_PCT": "Derived from FALSE_ALARM_BIN in main.py: zero(0%), very_conservative(5%), conservative(10%), standard(15%), elevated(20%), high(30%)",
+          "scenario_malicious_count": "Fixed per scenario template (WannaCry=11, Data_Theft=9, ShellShock=9, Netcat_Backdoor=7, passwd_gzip_scp=7, No_Attack=0)"
+        },
+        "example_at_defaults": "total=30, FA_pct=15%: WannaCry expects Malicious=11, FalseAlarm=4-5, Benign=15 (±1 tolerance)",
         "severity": "CRITICAL"
       },
       {

@@ -13,9 +13,9 @@ from helper_functions import PipelineConfig, run_pipeline
 # ============================================================
 # Modify these three lines to customize the pipeline run:
 
-TOTAL_EVENTS_PER_TABLE = 45           # Range: 18-45 events per table
-FALSE_ALARM_BIN = "high"         # Options: zero | very_conservative | conservative | standard | elevated | high
-FA_TYPE_RATIO_MODE = "port_heavy"      # Options: balanced | port_heavy | volume_heavy | duration_heavy
+TOTAL_EVENTS_PER_TABLE = 18           # Range: 18-45 events per table
+FALSE_ALARM_BIN = "high"             # Options: zero | very_conservative | conservative | standard | elevated | high
+FA_TYPE_RATIO_MODE = "balanced"      # Options: balanced | port_heavy | volume_heavy | duration_heavy
 
 # ============================================================
 # END OF USER CONFIGURATION

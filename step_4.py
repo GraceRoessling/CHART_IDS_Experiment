@@ -1,8 +1,13 @@
 """
 Step 4: Generate Benign Events
-Purpose: Create 15 realistic benign events per scenario reflecting normal enterprise traffic.
+Purpose: Create parameterized benign events (count varies by TOTAL_EVENTS_PER_TABLE and FA_BIN) reflecting normal enterprise traffic.
          Events are scenario-independent (sampled from pooled benign data) and uniformly
          distributed across the 1800s observation window.
+
+Parameterization Note:
+  - Benign event count per scenario: Computed dynamically as (TOTAL_EVENTS_PER_TABLE - scenario_malicious_count - false_alarm_count)
+  - This replaces the formerly hardcoded count of 15 events
+  - Allows flexibility across 18-45 event tables while maintaining realistic enterprise traffic patterns
 """
 
 import pandas as pd
@@ -106,7 +111,8 @@ def generate_benign_events_step_4(
         global_constraints_path (str): Path to templates/global_constraints.json
         network_topology (dict, optional): Loaded network_topology_output.json for AWS topology validation
         benign_count_per_scenario (dict): Map of scenario_name -> benign_count
-                                          If None, defaults to 15 for all scenarios
+                                          Computed dynamically as (TOTAL_EVENTS_PER_TABLE - malicious_count - false_alarm_count).
+                                          Caller must provide actual values; no hardcoded default of 15.
         random_seed (int): Seed for reproducibility
         output_debug (bool): Whether to output debug info
     
@@ -162,11 +168,17 @@ def generate_benign_events_step_4(
                     errors.append(f"Scenario {scenario_name} not found in templates")
                     continue
                 
-                # Get benign count from parameter or use default
+                # Get benign count from parameter (REQUIRED - no defaults)
                 if benign_count_per_scenario and scenario_name in benign_count_per_scenario:
                     ben_count = benign_count_per_scenario[scenario_name]
                 else:
-                    ben_count = 15  # Default for backwards compatibility
+                    # CHANGED: Fail fast if benign_count_per_scenario is missing
+                    # This should rarely happen (main.py always provides it)
+                    errors.append(
+                        f"FATAL: benign_count_per_scenario missing for {scenario_name}. "
+                        f"Expected dict with all scenario names; caller must provide computed values."
+                    )
+                    continue
                 
                 # Generate benign events (scenario-independent)
                 events = _generate_benign_events_for_scenario(
