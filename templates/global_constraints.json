@@ -172,12 +172,26 @@
   
   "output_schema": {
     "format": "CSV",
-    "total_columns": "23 (21 schema + 2 tracking)",
-    "description": "Output CSV structure for each scenario (parameterized event count per TOTAL_EVENTS_PER_TABLE; typically 18-45 events); exact column order is CRITICAL for downstream NoDOZE alignment",
+    "total_columns": "33 (5 metadata + 6 parameter_tracking + 21 schema + 1 source + 4 event_context)",
+    "description": "Output CSV structure for each scenario (parameterized event count per TOTAL_EVENTS_PER_TABLE; typically 18-45 events); exact column order is CRITICAL for downstream analysis",
+    "metadata_columns_5": [
+      "id",
+      "_total_events_param",
+      "_false_alarm_pct_param",
+      "_malicious_count_param",
+      "_benign_count_param"
+    ],
+    "metadata_note": "Metadata columns track pipeline parameters for reproducibility and result traceability",
+    "parameter_tracking_columns_1": [
+      "_false_alarm_count_param"
+    ],
+    "parameter_tracking_note": "Computed parameter value for validation and logging",
     "schema_columns_21": [
       "timestamp",
       "src_host",
       "dst_host",
+      "src_ip",
+      "dst_ip",
       "src_subnet",
       "dst_subnet",
       "proto",
@@ -197,32 +211,55 @@
       "attack_cat",
       "label"
     ],
+    "schema_note": "Core UNSW-compatible columns (23 columns including IP columns added in pipeline)",
     "tracking_columns_2": [
       "_unsw_row_id",
       "scenario_name"
     ],
-    "all_columns_ordered": [
-      "timestamp", "src_host", "dst_host", "src_subnet", "dst_subnet", "proto", "sport", "dport", "service", "duration", "bytes", "packets", "sttl", "dttl", "state", "sloss", "dloss", "ct_src_dport_ltm", "ct_dst_src_ltm", "attack_cat", "label", "_unsw_row_id", "scenario_name"
+    "tracking_note": "Audit columns for traceability and scenario identification",
+    "event_context_columns_2": [
+      "_source",
+      "phase"
     ],
-    "column_ordering": "Exact order REQUIRED for all 23 columns",
+    "event_context_note": "Event origin and temporal phase information for analysis and debugging",
+    "all_columns_ordered": [
+      "id", "_total_events_param", "_false_alarm_pct_param", "_malicious_count_param", "_benign_count_param", "_false_alarm_count_param", "timestamp", "src_host", "dst_host", "src_ip", "dst_ip", "src_subnet", "dst_subnet", "proto", "sport", "dport", "service", "duration", "bytes", "packets", "sttl", "dttl", "state", "sloss", "dloss", "ct_src_dport_ltm", "ct_dst_src_ltm", "attack_cat", "label", "_unsw_row_id", "scenario_name", "_source", "phase"
+    ],
+    "column_ordering": "Exact order REQUIRED for all 33 columns",
     "constraints": {
+      "id": "Sequential row ID (1, 2, 3, ..., N)",
+      "_total_events_param": "TOTAL_EVENTS_PER_TABLE value used (18-45); copied to all rows for reproducibility",
+      "_false_alarm_pct_param": "FALSE_ALARM_BIN percentage (0.0-30.0); copied to all rows for reproducibility",
+      "_malicious_count_param": "Scenario-specific malicious event count (fixed per template)",
+      "_benign_count_param": "Computed benign count = TOTAL_EVENTS_PER_TABLE - malicious - false_alarm",
+      "_false_alarm_count_param": "Computed false alarm count = round(TOTAL_EVENTS_PER_TABLE × FALSE_ALARM_BIN_PCT)",
       "timestamp": "Strictly increasing (0 ≤ t ≤ 1800 seconds)",
-      "src_host_dst_host": "Must map to defined hosts in network topology",
-      "src_subnet_dst_subnet": "Inferred from hostname; must match topology",
+      "src_host": "Source hostname (must map to defined hosts in network topology)",
+      "dst_host": "Destination hostname (must map to defined hosts in network topology)",
+      "src_ip": "Source IP address (10.0.x.x for internal hosts; external_xxx pattern for external)",
+      "dst_ip": "Destination IP address (10.0.x.x for internal hosts; external_xxx pattern for external)",
+      "src_subnet": "Inferred from src_host (must be valid subnet name)",
+      "dst_subnet": "Inferred from dst_host (must be valid subnet name)",
       "proto": "tcp | udp | http only",
-      "sport": "Ephemeral (1024-65535)",
-      "dport": "Scenario-specific (validated in feature_constraints)",
+      "sport": "Source port (ephemeral 1024-65535)",
+      "dport": "Destination port (scenario-specific; validated in feature_constraints)",
       "service": "Must align with dport (80→http, 22→ssh, 53→dns, 21→ftp, 445→smb, etc.)",
-      "duration_bytes_packets": "Internally consistent; preserve UNSW correlations",
+      "duration": "Connection duration in seconds (≥0.01); internally consistent with bytes/packets",
+      "bytes": "Total bytes transferred (sbytes + dbytes); ≥ 60; internally consistent with packets/duration",
+      "packets": "Total packets (spkts + dpkts); ≥ 1; internally consistent with bytes/duration",
       "sttl": "Source TTL (0-254); from UNSW direct pass-through",
       "dttl": "Destination TTL (0-254); from UNSW direct pass-through",
       "state": "Connection state (FIN, CON, INT, REQ, RST, URP, FOU, FSRA); from UNSW direct pass-through",
-      "sloss": "Source packet loss count; from UNSW direct pass-through",
-      "dloss": "Destination packet loss count; from UNSW direct pass-through",
-      "ct_src_dport_ltm": "Count of source IPs to same dest port in last time interval; from UNSW direct pass-through",
-      "ct_dst_src_ltm": "Count of unique dest IPs from same source in last time interval; from UNSW direct pass-through",
-      "attack_cat": "UNSW categories: Normal | Exploits | Worms | Backdoor | Shellcode",
-      "label": "Benign | Malicious | False Alarm (derived from label_distribution)"
+      "sloss": "Source packet loss count (≥0); from UNSW direct pass-through",
+      "dloss": "Destination packet loss count (≥0); from UNSW direct pass-through",
+      "ct_src_dport_ltm": "Count of source IPs to same dest port in last time interval; ≥0; from UNSW direct pass-through",
+      "ct_dst_src_ltm": "Count of unique dest IPs from same source in last time interval; ≥0; from UNSW direct pass-through",
+      "attack_cat": "UNSW categories (Normal, Exploits, Worms, Backdoor, Shellcode); may differ from label",
+      "label": "Event classification (Benign | Malicious | False Alarm); derived from label_distribution",
+      "_unsw_row_id": "Original UNSW row index (for traceability); used in synthesis pipeline",
+      "scenario_name": "Scenario identifier (WannaCry, Data_Theft, ShellShock, Netcat_Backdoor, passwd_gzip_scp, No_Attack)",
+      "_source": "Event origin tracking: UNSW_actual | UNSW_benign | UNSW_parameterized | UNSW_synthetic_KDE | synthetic_false_alarm_type1/2/3; for reproducibility and debugging",
+      "phase": "Temporal phase for malicious events (initial_access, progression, objective); null for benign/false alarm events"
     }
   },
   
@@ -324,7 +361,7 @@
       {
         "check_id": 13,
         "name": "Column order",
-        "description": "Exact 23-column order: schema (21) + tracking (2)",
+        "description": "Exact 33-column order: metadata (5) + parameter tracking (1) + schema (23) + tracking (2) + event context (2)",
         "condition": "CSV columns == all_columns_ordered",
         "severity": "CRITICAL"
       },
@@ -340,6 +377,34 @@
         "name": "Tracking columns present",
         "description": "_unsw_row_id and scenario_name columns are present and populated",
         "condition": "Both tracking columns exist and scenario_name matches expected value",
+        "severity": "HIGH"
+      },
+      {
+        "check_id": 16,
+        "name": "IP columns validity",
+        "description": "src_ip and dst_ip are valid IP addresses or hostname-IP mappings",
+        "condition": "All src_ip and dst_ip values match pattern 10.0.x.x or external_* or hostname format",
+        "severity": "HIGH"
+      },
+      {
+        "check_id": 17,
+        "name": "Source tracking columns",
+        "description": "_source column identifies event provenance (UNSW_actual, UNSW_benign, UNSW_parameterized, UNSW_synthetic_KDE, synthetic_false_alarm_typeX)",
+        "condition": "All _source values are documented and non-null",
+        "severity": "HIGH"
+      },
+      {
+        "check_id": 18,
+        "name": "Phase context for malicious events",
+        "description": "Malicious events have valid phase values (initial_access, progression, objective); benign/false alarm events may have null/empty phase",
+        "condition": "phase is non-null for malicious events; phase may be null for benign/false alarm",
+        "severity": "HIGH"
+      },
+      {
+        "check_id": 19,
+        "name": "Parameter consistency",
+        "description": "All rows have consistent _total_events_param, _false_alarm_pct_param, and computed counts",
+        "condition": "All values in _total_events_param column match TOTAL_EVENTS_PER_TABLE; _false_alarm_count_param == round(total × pct)",
         "severity": "HIGH"
       }
     ]
