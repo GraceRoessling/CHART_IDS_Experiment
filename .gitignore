@@ -1,3 +1,3 @@
 # IDS Datasets - ignore all files in the IDS_Datasets directory
-IDS_Datasets/CICIDS2017_Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv
-IDS_tables/
+IDS_Datasets/*
+IDS_tables/*
